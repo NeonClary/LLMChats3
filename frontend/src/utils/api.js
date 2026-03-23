@@ -1,4 +1,6 @@
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.REACT_APP_API_URL !== undefined
+  ? process.env.REACT_APP_API_URL
+  : 'http://localhost:8000';
 
 export async function fetchModels() {
   const resp = await fetch(`${API_BASE}/api/models`);
