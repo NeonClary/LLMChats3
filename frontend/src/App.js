@@ -5,7 +5,7 @@ import PersonaAccordion from './components/PersonaAccordion';
 import ChatControls from './components/ChatControls';
 import ChatArea from './components/ChatArea';
 import DevMenu from './components/DevMenu';
-import { fetchModels, generateRole, startChat, getOrchestrator, setOrchestrator, exportChat, exportApiLog } from './utils/api';
+import { fetchModels, generateRole, generateRoleFreeform, startChat, getOrchestrator, setOrchestrator, exportChat, exportApiLog } from './utils/api';
 import './styles/variables.css';
 import './styles/layout.css';
 import './styles/components.css';
@@ -42,6 +42,7 @@ export default function App() {
   const [sessionId, setSessionId] = useState(null);
   const [chatFinished, setChatFinished] = useState(false);
   const [orchestratorModel, setOrchestratorModel] = useState('');
+  const [personaMode, setPersonaMode] = useState('structured');
   const abortRef = useRef(null);
 
   useEffect(() => {
@@ -153,22 +154,14 @@ export default function App() {
     setStatusText('Generating persona roles...');
 
     try {
-      const [roleA, roleB] = await Promise.all([
-        generateRole({
-          model_id: selections[0],
-          name: personaA.name,
-          profile: personaA.profile,
-          identity: personaA.identity,
-          samples: personaA.samples,
-        }),
-        generateRole({
-          model_id: selections[1],
-          name: personaB.name,
-          profile: personaB.profile,
-          identity: personaB.identity,
-          samples: personaB.samples,
-        }),
-      ]);
+      const genA = personaMode === 'freeform'
+        ? generateRoleFreeform({ model_id: selections[0], name: personaA.name, text: personaA.freeform || '' })
+        : generateRole({ model_id: selections[0], name: personaA.name, profile: personaA.profile, identity: personaA.identity, samples: personaA.samples });
+      const genB = personaMode === 'freeform'
+        ? generateRoleFreeform({ model_id: selections[1], name: personaB.name, text: personaB.freeform || '' })
+        : generateRole({ model_id: selections[1], name: personaB.name, profile: personaB.profile, identity: personaB.identity, samples: personaB.samples });
+
+      const [roleA, roleB] = await Promise.all([genA, genB]);
 
       if (controller.signal.aborted) return;
 
@@ -217,7 +210,7 @@ export default function App() {
       setIsRunning(false);
       abortRef.current = null;
     }
-  }, [selections, personaA, personaB]);
+  }, [selections, personaA, personaB, personaMode]);
 
   return (
     <div className="app">
@@ -237,6 +230,8 @@ export default function App() {
             allModels={allModelsFlat}
             orchestratorModel={orchestratorModel}
             onOrchestratorChange={handleOrchestratorChange}
+            personaMode={personaMode}
+            onPersonaModeChange={setPersonaMode}
             onDownloadChatTxt={handleDownloadTxt}
             onDownloadChatMd={handleDownloadMd}
             onDownloadApiLog={handleDownloadApiLog}
@@ -264,6 +259,7 @@ export default function App() {
             onChangeB={setPersonaB}
             selectedNameA={selectedNameA}
             selectedNameB={selectedNameB}
+            mode={personaMode}
           />
 
           <ChatControls

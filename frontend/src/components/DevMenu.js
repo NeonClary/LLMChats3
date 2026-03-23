@@ -6,6 +6,8 @@ export default function DevMenu({
   allModels,
   orchestratorModel,
   onOrchestratorChange,
+  personaMode,
+  onPersonaModeChange,
   onDownloadApiLog,
   onDownloadChatTxt,
   onDownloadChatMd,
@@ -34,6 +36,18 @@ export default function DevMenu({
           <div className="dev-panel">
             <button onClick={() => { setOrchOpen(true); setOpen(false); }}>
               Orchestrator model…
+            </button>
+            <button
+              disabled={personaMode === 'structured'}
+              onClick={() => { onPersonaModeChange('structured'); setOpen(false); }}
+            >
+              Structured persona input
+            </button>
+            <button
+              disabled={personaMode === 'freeform'}
+              onClick={() => { onPersonaModeChange('freeform'); setOpen(false); }}
+            >
+              Freeform persona input
             </button>
             <button disabled={!hasApiLog} onClick={() => { onDownloadApiLog(); setOpen(false); }}>
               Download full API history

@@ -282,6 +282,25 @@
   font-style: italic;
 }
 
+.freeform-label-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.freeform-label-row label {
+  flex: 1;
+}
+
+.upload-btn {
+  flex-shrink: 0;
+}
+
+.freeform-textarea {
+  min-height: 260px;
+  resize: vertical;
+}
+
 @media (max-width: 900px) {
   .persona-panels {
     grid-template-columns: 1fr;
@@ -608,6 +627,13 @@
 .dev-panel button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.dev-panel-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: 6px;
+  font-style: italic;
 }
 
 

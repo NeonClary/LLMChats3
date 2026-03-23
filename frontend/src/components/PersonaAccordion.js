@@ -1,8 +1,11 @@
-import React from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import React, { useRef } from 'react';
+import { ChevronDown, ChevronRight, Upload } from 'lucide-react';
 
 const IDENTITY_PLACEHOLDER =
   'You are William Shakespeare, the Bard of Avon, and you speak exclusively in Early Modern English as it was written and spoken in the late sixteenth and early seventeenth centuries. Answer every question in the first person, as Shakespeare himself \u2014 drawing upon thy wit, thy worldly wisdom, and thy poet\u2019s tongue. Let thy responses flow with the cadence of the stage: rich with metaphor, alive with passion, and seasoned with the vocabulary of thine own age (thee, thou, thy, dost, hath, wherefore, and their kin).';
+
+const FREEFORM_PLACEHOLDER =
+  'Paste or type everything about this persona here \u2014 name, background, personality, speech style, writing samples, etc. You can also upload a .txt or .md file.\n\nThe LLM will use this text to build a role prompt.';
 
 export default function PersonaAccordion({
   isOpen,
@@ -13,6 +16,7 @@ export default function PersonaAccordion({
   onChangeB,
   selectedNameA,
   selectedNameB,
+  mode,
 }) {
   return (
     <div className="accordion">
@@ -22,25 +26,44 @@ export default function PersonaAccordion({
       </button>
       <div className={`accordion-body ${isOpen ? 'open' : ''}`}>
         <div className="persona-panels">
-          <PersonaPanel
-            label="A"
-            selectedLLM={selectedNameA}
-            data={personaA}
-            onChange={onChangeA}
-          />
-          <PersonaPanel
-            label="B"
-            selectedLLM={selectedNameB}
-            data={personaB}
-            onChange={onChangeB}
-          />
+          {mode === 'freeform' ? (
+            <>
+              <FreeformPanel
+                label="A"
+                selectedLLM={selectedNameA}
+                data={personaA}
+                onChange={onChangeA}
+              />
+              <FreeformPanel
+                label="B"
+                selectedLLM={selectedNameB}
+                data={personaB}
+                onChange={onChangeB}
+              />
+            </>
+          ) : (
+            <>
+              <StructuredPanel
+                label="A"
+                selectedLLM={selectedNameA}
+                data={personaA}
+                onChange={onChangeA}
+              />
+              <StructuredPanel
+                label="B"
+                selectedLLM={selectedNameB}
+                data={personaB}
+                onChange={onChangeB}
+              />
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function PersonaPanel({ label, selectedLLM, data, onChange }) {
+function StructuredPanel({ label, selectedLLM, data, onChange }) {
   const update = (field) => (e) => onChange({ ...data, [field]: e.target.value });
 
   return (
@@ -90,6 +113,70 @@ function PersonaPanel({ label, selectedLLM, data, onChange }) {
           placeholder="Paste quotes, transcripts, or writing samples here"
           value={data.samples}
           onChange={update('samples')}
+        />
+      </div>
+    </div>
+  );
+}
+
+function FreeformPanel({ label, selectedLLM, data, onChange }) {
+  const fileRef = useRef(null);
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      onChange({ ...data, freeform: ev.target.result });
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  return (
+    <div className="persona-panel">
+      <div className="persona-panel-header">
+        <span>Persona {label}</span>
+        {selectedLLM && (
+          <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--text-tertiary)' }}>
+            &mdash; {selectedLLM}
+          </span>
+        )}
+      </div>
+
+      <div className="persona-field">
+        <label>Name</label>
+        <input
+          type="text"
+          placeholder="Enter persona name"
+          value={data.name}
+          onChange={(e) => onChange({ ...data, name: e.target.value })}
+        />
+      </div>
+
+      <div className="persona-field freeform-field">
+        <div className="freeform-label-row">
+          <label>Persona Description</label>
+          <button
+            className="btn-sm btn-outline upload-btn"
+            onClick={() => fileRef.current?.click()}
+            title="Upload a .txt or .md file"
+          >
+            <Upload size={13} /> Upload file
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".txt,.md,.text"
+            style={{ display: 'none' }}
+            onChange={handleFileUpload}
+          />
+        </div>
+        <textarea
+          className="freeform-textarea"
+          placeholder={FREEFORM_PLACEHOLDER}
+          value={data.freeform || ''}
+          onChange={(e) => onChange({ ...data, freeform: e.target.value })}
         />
       </div>
     </div>

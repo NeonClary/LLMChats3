@@ -19,6 +19,19 @@ export async function generateRole({ model_id, name, profile, identity, samples 
   return resp.json();
 }
 
+export async function generateRoleFreeform({ model_id, name, text }) {
+  const resp = await fetch(`${API_BASE}/api/chat/generate-role-freeform`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model_id, name, text }),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+    throw new Error(err.detail || 'Role generation failed');
+  }
+  return resp.json();
+}
+
 export async function startChat(
   { persona_a_model_id, persona_a_name, persona_a_role,
     persona_b_model_id, persona_b_name, persona_b_role,

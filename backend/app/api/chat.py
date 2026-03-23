@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.config import settings
-from app.services.persona import generate_role_prompt
+from app.services.persona import generate_role_prompt, generate_role_prompt_freeform
 from app.services.orchestrator import (
     Session, Persona, create_session, get_session, run_conversation,
 )
@@ -28,6 +28,12 @@ class GenerateRoleRequest(BaseModel):
     profile: str = ""
     identity: str = ""
     samples: str = ""
+
+
+class GenerateRoleFreeformRequest(BaseModel):
+    model_id: str
+    name: str = ""
+    text: str = ""
 
 
 class SetOrchestratorRequest(BaseModel):
@@ -69,6 +75,18 @@ async def api_generate_role(req: GenerateRoleRequest):
         profile=req.profile,
         identity=req.identity,
         samples=req.samples,
+    )
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@router.post("/chat/generate-role-freeform")
+async def api_generate_role_freeform(req: GenerateRoleFreeformRequest):
+    result = await generate_role_prompt_freeform(
+        model_id=req.model_id,
+        name=req.name,
+        text=req.text,
     )
     if result.get("error"):
         raise HTTPException(status_code=400, detail=result["error"])
