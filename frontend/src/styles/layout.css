@@ -1,7 +1,8 @@
 .app {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .app-header {
@@ -12,8 +13,7 @@
   background: var(--card-bg);
   border-bottom: 1px solid var(--border-primary);
   box-shadow: var(--shadow-sm);
-  position: sticky;
-  top: 0;
+  flex-shrink: 0;
   z-index: 100;
   backdrop-filter: blur(12px);
 }
@@ -22,6 +22,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .app-title {
@@ -31,12 +32,14 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  white-space: nowrap;
 }
 
 .header-right {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .icon-btn {
@@ -61,6 +64,7 @@
 .app-main {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -76,31 +80,67 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: calc(100vh - 57px);
 }
 
 .content {
   flex: 1;
+  min-height: 0;
   padding: 20px 24px;
   overflow-y: auto;
-  max-height: calc(100vh - 57px);
   display: flex;
   flex-direction: column;
   gap: 0;
 }
 
+/* ── Tablet: stack sidebar above content ──────────────────────── */
 @media (max-width: 900px) {
+  .app {
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+  }
+  .app-header {
+    padding: 10px 16px;
+  }
   .app-main {
     flex-direction: column;
+    overflow: visible;
   }
   .sidebar {
     width: 100%;
     min-width: auto;
-    max-height: none;
+    max-height: 200px;
     border-right: none;
     border-bottom: 1px solid var(--border-primary);
   }
   .content {
-    max-height: none;
+    padding: 16px;
+    min-height: 0;
+    flex: 1;
+  }
+}
+
+/* ── Phone ────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .app-header {
+    padding: 8px 12px;
+    gap: 4px;
+  }
+  .app-title {
+    font-size: 15px;
+  }
+  .header-right {
+    gap: 4px;
+  }
+  .icon-btn {
+    width: 32px;
+    height: 32px;
+  }
+  .sidebar {
+    max-height: 160px;
+    padding: 8px;
+  }
+  .content {
+    padding: 12px;
   }
 }

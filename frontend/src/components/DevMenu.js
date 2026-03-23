@@ -82,6 +82,12 @@ export default function DevMenu({
             >
               Freeform persona input
             </button>
+            <button disabled={!hasChat} className="dev-panel-download-item" onClick={() => { onDownloadChatTxt(); setOpen(false); }}>
+              Download chat as .txt
+            </button>
+            <button disabled={!hasChat} className="dev-panel-download-item" onClick={() => { onDownloadChatMd(); setOpen(false); }}>
+              Download chat as .md
+            </button>
             <button disabled={!hasApiLog} onClick={() => { onDownloadApiLog(); setOpen(false); }}>
               Download full API history
             </button>
