@@ -1,0 +1,426 @@
+from __future__ import annotations
+
+import json
+import logging
+import random
+import time
+import uuid
+from dataclasses import dataclass, field
+from typing import Any, AsyncIterator
+
+from app.clients.openai_compat import openai_chat_completion
+from app.config import settings
+
+LOG = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Prompt templates
+# ---------------------------------------------------------------------------
+
+AUTO_START_PROMPT = (
+    "You're starting a conversation with someone new. Here is some information about them: "
+    "{other_role}\n\n"
+    "Consider connections between this information and what you know about yourself, and say "
+    "something that could start a conversation with that new person. Speak in the first person, "
+    "as if directly to the other person."
+)
+
+FIRST_REPLY_PROMPT = (
+    "Someone just started a conversation with you, this is what they said: {last_message}\n\n"
+    "Consider connections between this conversation starter and what you know about yourself, "
+    "and say something that could continue the conversation with that new person. Speak in the "
+    "first person, as if directly to the other person."
+)
+
+CONTINUE_PROMPT = (
+    "You are having a conversation with another person, here is the conversation so far:\n\n"
+    "{history}\n\n"
+    "Consider how human conversations generally progress, and provide a response. If the last "
+    "reply in the conversation is one which might indicate a human is losing interest in or "
+    "wrapping up the conversation, then make a response which will help wrap up and close the "
+    "conversation."
+)
+
+WRAP_UP_PROMPT = (
+    "You are having a conversation with another person, but now it is necessary to wrap up "
+    "the conversation. Here is the conversation:\n\n{history}\n\n"
+    "Consider how human conversations generally progress, and provide a response intended to "
+    "start wrapping up the conversation. It should be a response well aligned in tone with the "
+    "conversation so far and with what you know about yourself."
+)
+
+END_CONVERSATION_PROMPT = (
+    "You are ending a conversation with another person, here is the conversation:\n\n"
+    "{history}\n\n"
+    "Consider how human conversations generally progress, and provide a response intended to "
+    "end the conversation. It should be a response well aligned in tone with the conversation "
+    "so far and with what you know about yourself."
+)
+
+ORCHESTRATOR_CHECK_PROMPT = (
+    "You are monitoring a conversation between two people. Your job is to determine whether "
+    "the latest message indicates the speaker is losing interest or wrapping up the conversation. "
+    "Reply with ONLY a JSON object: {{\"winding_down\": true}} or {{\"winding_down\": false}}. "
+    "No other text.\n\nLatest message:\n{message}"
+)
+
+ORCHESTRATOR_END_CHECK_PROMPT = (
+    "You are monitoring a conversation between two people. Both participants have just sent "
+    "messages intended to end the conversation. Evaluate whether these two messages together "
+    "form a reasonable, coherent end to the conversation.\n\n"
+    "Full conversation:\n{history}\n\n"
+    "Reply with ONLY a JSON object: {{\"good_ending\": true}} or {{\"good_ending\": false}}. "
+    "No other text."
+)
+
+ORCHESTRATOR_HUMOROUS_SIGNOFF_PROMPT = (
+    "You've been monitoring a conversation between two people who just can't seem to stop "
+    "talking. Write a single brief, pithy, humorous, and positive-attitude statement about "
+    "having to end the conversation — maybe something about how hard it is to stop talking "
+    "when you're enjoying a conversation, or a playful 'sorry folks, we've got to move on' "
+    "type remark. Keep it to 1-2 sentences."
+)
+
+
+# ---------------------------------------------------------------------------
+# Session data
+# ---------------------------------------------------------------------------
+
+@dataclass
+class Persona:
+    name: str
+    model_id: str
+    role_prompt: str
+    base_url: str = ""
+    api_key: str = ""
+    display_name: str = ""
+
+
+@dataclass
+class Session:
+    session_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    persona_a: Persona | None = None
+    persona_b: Persona | None = None
+    messages: list[dict[str, str]] = field(default_factory=list)
+    api_log: list[dict[str, Any]] = field(default_factory=list)
+    a_count: int = 0
+    b_count: int = 0
+    wrap_sent: bool = False
+    end_mode: bool = False
+    a_winding: bool = False
+    b_winding: bool = False
+    finished: bool = False
+
+
+_sessions: dict[str, Session] = {}
+
+
+def get_session(sid: str) -> Session | None:
+    return _sessions.get(sid)
+
+
+def create_session() -> Session:
+    s = Session()
+    _sessions[s.session_id] = s
+    return s
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _format_history(messages: list[dict[str, str]]) -> str:
+    lines = []
+    for m in messages:
+        lines.append(f"{m['speaker']}: {m['text']}")
+    return "\n".join(lines)
+
+
+async def _call_llm(
+    persona: Persona,
+    system_content: str,
+    user_content: str,
+    session: Session,
+    label: str = "",
+    max_tokens: int = 1024,
+) -> str:
+    messages = [
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": user_content},
+    ]
+    log_entry: dict[str, Any] = {
+        "timestamp": time.time(),
+        "label": label,
+        "model": persona.model_id,
+        "request": {"messages": messages, "max_tokens": max_tokens},
+    }
+
+    result = await openai_chat_completion(
+        base_url=persona.base_url,
+        api_key=persona.api_key,
+        model=persona.model_id,
+        messages=messages,
+        temperature=0.7,
+        max_tokens=max_tokens,
+    )
+
+    log_entry["response"] = result
+    session.api_log.append(log_entry)
+
+    return result.get("response", "")
+
+
+async def _call_orchestrator(
+    prompt: str,
+    session: Session,
+    label: str = "",
+) -> str:
+    resolved = settings.resolve_model(settings.orchestrator_model)
+    if not resolved:
+        LOG.warning("Orchestrator model %s not found, using first available", settings.orchestrator_model)
+        for prov in settings.providers:
+            for m in prov["models"]:
+                resolved = {
+                    "base_url": m.get("base_url", prov["base_url"]),
+                    "api_key": m.get("api_key", prov["api_key"]),
+                    "model_id": m["id"],
+                }
+                break
+            if resolved:
+                break
+
+    if not resolved:
+        return '{"winding_down": false}'
+
+    messages = [
+        {"role": "system", "content": "You are a conversation monitor. Respond only with the requested JSON."},
+        {"role": "user", "content": prompt},
+    ]
+    log_entry: dict[str, Any] = {
+        "timestamp": time.time(),
+        "label": f"orchestrator:{label}",
+        "model": resolved["model_id"],
+        "request": {"messages": messages},
+    }
+
+    result = await openai_chat_completion(
+        base_url=resolved["base_url"],
+        api_key=resolved["api_key"],
+        model=resolved["model_id"],
+        messages=messages,
+        temperature=0.2,
+        max_tokens=256,
+    )
+
+    log_entry["response"] = result
+    session.api_log.append(log_entry)
+
+    return result.get("response", "")
+
+
+def _parse_json_bool(raw: str, key: str) -> bool:
+    try:
+        raw = raw.strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0]
+        return json.loads(raw).get(key, False)
+    except Exception:
+        lower = raw.lower()
+        return f'"{key}": true' in lower or f'"{key}":true' in lower
+
+
+# ---------------------------------------------------------------------------
+# Main conversation loop (yields SSE events)
+# ---------------------------------------------------------------------------
+
+async def run_conversation(
+    session: Session,
+    starter_text: str | None = None,
+) -> AsyncIterator[str]:
+    pa = session.persona_a
+    pb = session.persona_b
+    if not pa or not pb:
+        yield _sse("error", {"message": "Both personas must be configured"})
+        return
+
+    participants = [pa, pb]
+    starter_idx = random.randint(0, 1)
+    starter = participants[starter_idx]
+    responder = participants[1 - starter_idx]
+
+    yield _sse("status", {"message": "Starting conversation..."})
+
+    # --- First message ---
+    if starter_text:
+        user_prompt = starter_text
+    else:
+        user_prompt = AUTO_START_PROMPT.format(other_role=responder.role_prompt)
+
+    first_msg = await _call_llm(
+        starter, starter.role_prompt, user_prompt, session,
+        label=f"start:{starter.name}",
+    )
+    _add_message(session, starter, first_msg, starter_idx)
+    yield _sse("message", _msg_payload(session.messages[-1], starter_idx))
+
+    # --- First reply ---
+    reply_prompt = FIRST_REPLY_PROMPT.format(last_message=first_msg)
+    second_msg = await _call_llm(
+        responder, responder.role_prompt, reply_prompt, session,
+        label=f"first_reply:{responder.name}",
+    )
+    _add_message(session, responder, second_msg, 1 - starter_idx)
+    yield _sse("message", _msg_payload(session.messages[-1], 1 - starter_idx))
+
+    # --- Continue loop ---
+    current_idx = starter_idx
+    while not session.finished:
+        current = participants[current_idx]
+        history_text = _format_history(session.messages)
+
+        # Check orchestrator on the last message
+        last_msg_text = session.messages[-1]["text"]
+        last_speaker_idx = session.messages[-1]["speaker_idx"]
+
+        if not session.end_mode:
+            orch_raw = await _call_orchestrator(
+                ORCHESTRATOR_CHECK_PROMPT.format(message=last_msg_text),
+                session,
+                label="winding_check",
+            )
+            winding = _parse_json_bool(orch_raw, "winding_down")
+            if winding:
+                if last_speaker_idx == 0:
+                    session.a_winding = True
+                else:
+                    session.b_winding = True
+
+            if session.a_winding and session.b_winding:
+                session.end_mode = True
+
+        # Force wrap-up at 8 messages each
+        if not session.end_mode and not session.wrap_sent:
+            if session.a_count >= 8 and session.b_count >= 8:
+                session.wrap_sent = True
+                wrap_msg = await _call_llm(
+                    current, current.role_prompt,
+                    WRAP_UP_PROMPT.format(history=history_text),
+                    session, label=f"wrap_up:{current.name}",
+                )
+                _add_message(session, current, wrap_msg, current_idx)
+                yield _sse("message", _msg_payload(session.messages[-1], current_idx))
+
+                session.end_mode = True
+                current_idx = 1 - current_idx
+                continue
+
+        if session.end_mode:
+            async for event in _end_sequence(session, participants, current_idx):
+                yield event
+            break
+
+        # Normal continue
+        prompt = CONTINUE_PROMPT.format(history=history_text)
+        response = await _call_llm(
+            current, current.role_prompt, prompt, session,
+            label=f"continue:{current.name}",
+        )
+        _add_message(session, current, response, current_idx)
+        yield _sse("message", _msg_payload(session.messages[-1], current_idx))
+
+        current_idx = 1 - current_idx
+
+    yield _sse("done", {})
+
+
+async def _end_sequence(
+    session: Session,
+    participants: list[Persona],
+    current_idx: int,
+) -> AsyncIterator[str]:
+    """Handle the end-of-conversation sequence with retry logic."""
+    history_text = _format_history(session.messages)
+
+    for attempt in range(5):
+        # Get end message from current participant
+        end_msg = await _call_llm(
+            participants[current_idx],
+            participants[current_idx].role_prompt,
+            END_CONVERSATION_PROMPT.format(history=history_text),
+            session,
+            label=f"end:{participants[current_idx].name}:attempt{attempt}",
+        )
+        _add_message(session, participants[current_idx], end_msg, current_idx)
+        yield _sse("message", _msg_payload(session.messages[-1], current_idx))
+
+        # Get end message from the other participant
+        other_idx = 1 - current_idx
+        history_text = _format_history(session.messages)
+        end_msg2 = await _call_llm(
+            participants[other_idx],
+            participants[other_idx].role_prompt,
+            END_CONVERSATION_PROMPT.format(history=history_text),
+            session,
+            label=f"end:{participants[other_idx].name}:attempt{attempt}",
+        )
+        _add_message(session, participants[other_idx], end_msg2, other_idx)
+        yield _sse("message", _msg_payload(session.messages[-1], other_idx))
+
+        # Ask orchestrator if this is a good ending
+        history_text = _format_history(session.messages)
+        orch_raw = await _call_orchestrator(
+            ORCHESTRATOR_END_CHECK_PROMPT.format(history=history_text),
+            session,
+            label=f"end_check:attempt{attempt}",
+        )
+        good = _parse_json_bool(orch_raw, "good_ending")
+
+        if good:
+            session.finished = True
+            yield _sse("system", {"text": "End of Chat"})
+            return
+
+        current_idx = other_idx
+
+    # 5 attempts exhausted — humorous sign-off
+    signoff = await _call_orchestrator(
+        ORCHESTRATOR_HUMOROUS_SIGNOFF_PROMPT,
+        session,
+        label="humorous_signoff",
+    )
+    session.finished = True
+    yield _sse("system", {"text": signoff})
+    yield _sse("system", {"text": "End of Chat"})
+
+
+# ---------------------------------------------------------------------------
+# SSE helpers
+# ---------------------------------------------------------------------------
+
+def _add_message(session: Session, persona: Persona, text: str, speaker_idx: int) -> None:
+    session.messages.append({
+        "speaker": persona.name,
+        "speaker_idx": speaker_idx,
+        "model_id": persona.model_id,
+        "model_display": persona.display_name,
+        "text": text,
+        "timestamp": time.time(),
+    })
+    if speaker_idx == 0:
+        session.a_count += 1
+    else:
+        session.b_count += 1
+
+
+def _msg_payload(msg: dict, speaker_idx: int) -> dict:
+    return {
+        "speaker": msg["speaker"],
+        "speaker_idx": speaker_idx,
+        "model_display": msg["model_display"],
+        "text": msg["text"],
+        "timestamp": msg["timestamp"],
+    }
+
+
+def _sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"

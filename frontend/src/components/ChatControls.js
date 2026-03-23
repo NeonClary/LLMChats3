@@ -1,0 +1,56 @@
+import React, { useState } from 'react';
+import { Play, Shuffle, Square } from 'lucide-react';
+
+export default function ChatControls({ onStart, onStop, disabled, isRunning }) {
+  const [starterText, setStarterText] = useState('');
+
+  const handleStartWithText = () => {
+    onStart(starterText.trim() || null);
+  };
+
+  const handleAutoStart = () => {
+    onStart(null);
+  };
+
+  return (
+    <div className="chat-controls">
+      {isRunning ? (
+        <button className="btn-stop" onClick={onStop} title="Stop the conversation">
+          <Square size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+          Stop Chat
+        </button>
+      ) : (
+        <>
+          <input
+            type="text"
+            placeholder="Enter a conversation starter, or let them start on their own..."
+            value={starterText}
+            onChange={e => setStarterText(e.target.value)}
+            disabled={disabled}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !disabled) handleStartWithText();
+            }}
+          />
+          <button
+            className="btn-primary"
+            onClick={handleStartWithText}
+            disabled={disabled}
+            title="Start with your message"
+          >
+            <Play size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+            Start Chat
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={handleAutoStart}
+            disabled={disabled}
+            title="Let the LLMs start on their own"
+          >
+            <Shuffle size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+            Let Them Start
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
