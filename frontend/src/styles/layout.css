@@ -65,15 +65,17 @@
 }
 
 .sidebar {
-  width: 320px;
-  min-width: 320px;
-  padding: 16px;
+  width: 280px;
+  min-width: 280px;
+  flex-shrink: 0;
+  padding: 12px;
   overflow-y: auto;
+  overflow-x: hidden;
   border-right: 1px solid var(--border-primary);
   background: var(--bg-secondary);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
   max-height: calc(100vh - 57px);
 }
 
