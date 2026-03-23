@@ -94,29 +94,22 @@
 
 /* ── Tablet: stack sidebar above content ──────────────────────── */
 @media (max-width: 900px) {
-  .app {
-    height: auto;
-    min-height: 100vh;
-    overflow: auto;
-  }
   .app-header {
     padding: 10px 16px;
   }
   .app-main {
     flex-direction: column;
-    overflow: visible;
   }
   .sidebar {
     width: 100%;
     min-width: auto;
     max-height: 200px;
+    flex-shrink: 0;
     border-right: none;
     border-bottom: 1px solid var(--border-primary);
   }
   .content {
     padding: 16px;
-    min-height: 0;
-    flex: 1;
   }
 }
 

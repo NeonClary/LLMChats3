@@ -51,6 +51,28 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
+  // #region agent log
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const app = document.querySelector('.app');
+      const main = document.querySelector('.app-main');
+      const content = document.querySelector('.content');
+      const accordion = document.querySelector('.accordion');
+      const accBody = document.querySelector('.accordion-body.open');
+      const lastTextarea = document.querySelectorAll('.persona-field textarea.tall');
+      const log = (msg, data) => fetch('http://127.0.0.1:7242/ingest/55bc8edc-2006-4ebe-8076-1d725683b980',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.js:scroll-debug2',message:msg,data,timestamp:Date.now(),hypothesisId:'H11-H14',runId:'run5'})}).catch(()=>{});
+      log('viewport', { w: window.innerWidth, h: window.innerHeight });
+      if (app) { const cs = getComputedStyle(app); log('app', { offsetH: app.offsetHeight, scrollH: app.scrollHeight, height: cs.height, minH: cs.minHeight, overflow: cs.overflow }); }
+      if (main) { const cs = getComputedStyle(main); log('app-main', { offsetH: main.offsetHeight, scrollH: main.scrollHeight, minH: cs.minHeight, overflow: cs.overflow, flexDir: cs.flexDirection }); }
+      if (content) { const cs = getComputedStyle(content); log('content', { offsetH: content.offsetHeight, clientH: content.clientHeight, scrollH: content.scrollHeight, minH: cs.minHeight, overflowY: cs.overflowY, canScroll: content.scrollHeight > content.clientHeight }); }
+      if (accordion) { const cs = getComputedStyle(accordion); log('accordion', { offsetH: accordion.offsetHeight, scrollH: accordion.scrollHeight, overflow: cs.overflow }); }
+      if (accBody) { const cs = getComputedStyle(accBody); log('accBody', { offsetH: accBody.offsetHeight, scrollH: accBody.scrollHeight, maxH: cs.maxHeight, overflow: cs.overflow }); }
+      if (lastTextarea.length > 0) { const last = lastTextarea[lastTextarea.length - 1]; const rect = last.getBoundingClientRect(); log('lastTextarea', { y: rect.top, bottom: rect.bottom, h: rect.height }); }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [accordionOpen]);
+  // #endregion
+
   useEffect(() => {
     fetchModels()
       .then(data => {
