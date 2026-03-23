@@ -4,8 +4,8 @@ import json
 import logging
 import time
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
 
 from app.config import settings
@@ -94,8 +94,21 @@ async def api_generate_role_freeform(req: GenerateRoleFreeformRequest):
 
 
 @router.post("/chat/start")
-async def api_start_chat(req: StartChatRequest):
+async def api_start_chat(req: StartChatRequest, request: Request):
     """Create a session and return a streaming SSE response for the conversation."""
+    from app.middleware.rate_limit import check_rate_limit, record_conversation
+
+    allowed, remaining = check_rate_limit(request)
+    if not allowed:
+        return JSONResponse(
+            status_code=429,
+            content={
+                "detail": "Daily conversation limit reached (20/day). Sign in with HuggingFace as a neongeckocom org member for unlimited access.",
+                "remaining": 0,
+            },
+        )
+    record_conversation(request)
+
     ra = settings.resolve_model(req.persona_a_model_id)
     rb = settings.resolve_model(req.persona_b_model_id)
 

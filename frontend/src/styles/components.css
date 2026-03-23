@@ -815,3 +815,61 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ── Auth Badge ───────────────────────────────────────────────── */
+
+.auth-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+.auth-username {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.auth-org-tag {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--accent-primary);
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.auth-remaining {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.auth-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.auth-link:hover {
+  color: var(--text-primary);
+}
+
+.auth-login {
+  color: var(--accent-primary);
+  font-weight: 500;
+}
+
+.auth-login:hover {
+  color: var(--text-primary);
+}

@@ -5,7 +5,8 @@ import PersonaAccordion from './components/PersonaAccordion';
 import ChatControls from './components/ChatControls';
 import ChatArea from './components/ChatArea';
 import DevMenu from './components/DevMenu';
-import { fetchModels, generateRole, generateRoleFreeform, startChat, getOrchestrator, setOrchestrator, exportChat, exportApiLog } from './utils/api';
+import AuthBadge from './components/AuthBadge';
+import { fetchModels, generateRole, generateRoleFreeform, startChat, getOrchestrator, setOrchestrator, exportChat, exportApiLog, getAuthStatus } from './utils/api';
 import './styles/variables.css';
 import './styles/layout.css';
 import './styles/components.css';
@@ -43,6 +44,7 @@ export default function App() {
   const [chatFinished, setChatFinished] = useState(false);
   const [orchestratorModel, setOrchestratorModel] = useState('');
   const [personaMode, setPersonaMode] = useState('structured');
+  const [auth, setAuth] = useState(null);
   const abortRef = useRef(null);
 
   useEffect(() => {
@@ -59,6 +61,7 @@ export default function App() {
     getOrchestrator()
       .then(data => setOrchestratorModel(data.model_id || ''))
       .catch(() => {});
+    getAuthStatus().then(setAuth).catch(() => {});
   }, []);
 
   const allModelsFlat = useMemo(() => {
@@ -205,10 +208,16 @@ export default function App() {
     } catch (err) {
       if (err.name === 'AbortError') return;
       console.error('Chat error:', err);
-      setSystemMessages(prev => [...prev, { text: `Error: ${err.message}` }]);
+      const isRateLimit = err.message && err.message.includes('Daily conversation limit');
+      setSystemMessages(prev => [...prev, {
+        text: isRateLimit
+          ? 'Daily conversation limit reached (20/day). Sign in with HuggingFace for unlimited access.'
+          : `Error: ${err.message}`,
+      }]);
     } finally {
       setIsRunning(false);
       abortRef.current = null;
+      getAuthStatus().then(setAuth).catch(() => {});
     }
   }, [selections, personaA, personaB, personaMode]);
 
@@ -216,9 +225,10 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="header-left">
-          <span className="app-title">LLMChats3</span>
+          <span className="app-title">AI Conversations</span>
         </div>
         <div className="header-right">
+          <AuthBadge auth={auth} />
           <button
             className="icon-btn"
             onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}

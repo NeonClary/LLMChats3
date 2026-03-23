@@ -127,3 +127,15 @@ export async function exportApiLog(sessionId) {
   if (!resp.ok) throw new Error('API log export failed');
   return resp.json();
 }
+
+export async function getAuthStatus() {
+  const resp = await fetch(`${API_BASE}/api/auth/status`, { credentials: 'include' });
+  if (!resp.ok) return { logged_in: false, remaining_conversations: -1 };
+  return resp.json();
+}
+
+export async function getRateLimitStatus() {
+  const resp = await fetch(`${API_BASE}/api/rate-limit/status`, { credentials: 'include' });
+  if (!resp.ok) return { remaining: -1 };
+  return resp.json();
+}

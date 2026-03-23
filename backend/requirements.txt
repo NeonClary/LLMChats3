@@ -4,3 +4,5 @@ httpx>=0.27.0
 pydantic-settings>=2.6.0
 python-multipart>=0.0.12
 python-dotenv>=1.0.0
+huggingface_hub>=0.25.0
+itsdangerous>=2.2.0
