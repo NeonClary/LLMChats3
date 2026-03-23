@@ -87,6 +87,22 @@ export async function startChat(
   onDone?.();
 }
 
+export async function getOrchestrator() {
+  const resp = await fetch(`${API_BASE}/api/chat/orchestrator`);
+  if (!resp.ok) throw new Error('Failed to get orchestrator');
+  return resp.json();
+}
+
+export async function setOrchestrator(modelId) {
+  const resp = await fetch(`${API_BASE}/api/chat/orchestrator`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model_id: modelId }),
+  });
+  if (!resp.ok) throw new Error('Failed to set orchestrator');
+  return resp.json();
+}
+
 export async function exportChat(sessionId, fmt = 'txt') {
   const resp = await fetch(`${API_BASE}/api/chat/${sessionId}/export?fmt=${fmt}`);
   if (!resp.ok) throw new Error('Export failed');

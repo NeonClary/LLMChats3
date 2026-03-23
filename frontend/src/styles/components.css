@@ -514,50 +514,256 @@
   transform: scale(0.97);
 }
 
-/* ── Export / Dev Options ──────────────────────────────────────── */
+/* ── Header Dev Menu ───────────────────────────────────────────── */
 
-.export-bar {
+.dev-wrap {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 0;
-  border-top: 1px solid var(--border-primary);
-  margin-top: 4px;
+  gap: 10px;
 }
 
-.dev-dropdown {
+.dev-download-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-outline {
+  border: 1px solid var(--border-primary);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  transition: border-color 0.15s;
+}
+
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.btn-outline:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: background 0.15s;
+}
+
+.btn-ghost:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+
+.dev-dropdown-header {
   position: relative;
 }
 
-.dev-dropdown-menu {
+.dev-panel {
   position: absolute;
-  bottom: 100%;
   right: 0;
-  margin-bottom: 4px;
+  top: 100%;
+  margin-top: 4px;
+  min-width: 220px;
   background: var(--card-bg);
   border: 1px solid var(--border-primary);
-  border-radius: 8px;
-  box-shadow: var(--shadow-md);
-  min-width: 200px;
+  border-radius: 10px;
+  padding: 6px;
   z-index: 50;
-  overflow: hidden;
+  box-shadow: var(--shadow-md);
 }
 
-.dev-dropdown-menu button {
+.dev-panel button {
   display: block;
   width: 100%;
-  padding: 10px 14px;
-  border: none;
-  background: none;
-  color: var(--text-secondary);
-  font-size: 13px;
   text-align: left;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
   transition: background 0.1s;
 }
 
-.dev-dropdown-menu button:hover {
+.dev-panel button:hover:not(:disabled) {
   background: var(--bg-tertiary);
   color: var(--text-primary);
+}
+
+.dev-panel button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+
+/* ── Modal / Picker ────────────────────────────────────────────── */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+
+.modal-panel {
+  width: 100%;
+  max-width: 480px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+  border: 1px solid var(--border-primary);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.modal-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.modal-close-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.modal-close-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.modal-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 10px;
+}
+
+.picker-search {
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.picker-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.picker-search input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px 10px 36px;
+  border: 1px solid var(--border-primary);
+  border-radius: 10px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.picker-search input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.picker-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+  max-height: 50vh;
+}
+
+.picker-list li {
+  margin-bottom: 4px;
+}
+
+.picker-item {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  transition: background 0.1s;
+}
+
+.picker-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.picker-item-active {
+  border-color: var(--accent-primary);
+  background: var(--accent-light);
+}
+
+.picker-item-active:hover {
+  background: var(--accent-light);
+}
+
+.picker-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.picker-item-name {
+  font-weight: 500;
+}
+
+.picker-item-provider {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 /* ── Status / Loading ──────────────────────────────────────────── */

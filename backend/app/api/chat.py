@@ -30,6 +30,10 @@ class GenerateRoleRequest(BaseModel):
     samples: str = ""
 
 
+class SetOrchestratorRequest(BaseModel):
+    model_id: str
+
+
 class StartChatRequest(BaseModel):
     persona_a_model_id: str
     persona_a_name: str
@@ -45,6 +49,17 @@ class StartChatRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+@router.get("/chat/orchestrator")
+async def api_get_orchestrator():
+    return {"model_id": settings.orchestrator_model}
+
+
+@router.put("/chat/orchestrator")
+async def api_set_orchestrator(req: SetOrchestratorRequest):
+    settings.orchestrator_model = req.model_id
+    return {"model_id": settings.orchestrator_model}
+
 
 @router.post("/chat/generate-role")
 async def api_generate_role(req: GenerateRoleRequest):

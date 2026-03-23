@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Sun, Moon } from 'lucide-react';
 import LLMSelector from './components/LLMSelector';
 import PersonaAccordion from './components/PersonaAccordion';
 import ChatControls from './components/ChatControls';
 import ChatArea from './components/ChatArea';
-import ExportBar from './components/ExportBar';
-import { fetchModels, generateRole, startChat } from './utils/api';
+import DevMenu from './components/DevMenu';
+import { fetchModels, generateRole, startChat, getOrchestrator, setOrchestrator, exportChat, exportApiLog } from './utils/api';
 import './styles/variables.css';
 import './styles/layout.css';
 import './styles/components.css';
@@ -41,6 +41,7 @@ export default function App() {
   const [statusText, setStatusText] = useState('');
   const [sessionId, setSessionId] = useState(null);
   const [chatFinished, setChatFinished] = useState(false);
+  const [orchestratorModel, setOrchestratorModel] = useState('');
   const abortRef = useRef(null);
 
   useEffect(() => {
@@ -54,7 +55,73 @@ export default function App() {
         setNeonModels(data.neon_models || []);
       })
       .catch(err => console.error('Failed to load models:', err));
+    getOrchestrator()
+      .then(data => setOrchestratorModel(data.model_id || ''))
+      .catch(() => {});
   }, []);
+
+  const allModelsFlat = useMemo(() => {
+    const list = [];
+    for (const p of providers) {
+      for (const m of p.models) {
+        list.push({ id: m.id, name: m.name, provider: p.name });
+      }
+    }
+    for (const nm of neonModels) {
+      for (const p of (nm.personas || [])) {
+        if (p.enabled === false) continue;
+        list.push({
+          id: `neon:${nm.model_id}:${p.persona_name}`,
+          name: p.persona_name,
+          provider: `Neon / ${nm.name.split('/').pop()}`,
+        });
+      }
+    }
+    return list;
+  }, [providers, neonModels]);
+
+  const handleOrchestratorChange = useCallback(async (modelId) => {
+    try {
+      await setOrchestrator(modelId || '');
+      setOrchestratorModel(modelId || '');
+    } catch (err) {
+      console.error('Failed to set orchestrator:', err);
+    }
+  }, []);
+
+  const downloadFile = useCallback((filename, content) => {
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleDownloadTxt = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const result = await exportChat(sessionId, 'txt');
+      downloadFile(result.filename, result.content);
+    } catch (err) { console.error('Export failed:', err); }
+  }, [sessionId, downloadFile]);
+
+  const handleDownloadMd = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const result = await exportChat(sessionId, 'md');
+      downloadFile(result.filename, result.content);
+    } catch (err) { console.error('Export failed:', err); }
+  }, [sessionId, downloadFile]);
+
+  const handleDownloadApiLog = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const result = await exportApiLog(sessionId);
+      downloadFile('api_log.json', JSON.stringify(result, null, 2));
+    } catch (err) { console.error('API log export failed:', err); }
+  }, [sessionId, downloadFile]);
 
   const selectedNameA = selections[0] ? getDisplayName(selections[0], providers, neonModels) : '';
   const selectedNameB = selections[1] ? getDisplayName(selections[1], providers, neonModels) : '';
@@ -166,6 +233,16 @@ export default function App() {
           >
             {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
           </button>
+          <DevMenu
+            allModels={allModelsFlat}
+            orchestratorModel={orchestratorModel}
+            onOrchestratorChange={handleOrchestratorChange}
+            onDownloadChatTxt={handleDownloadTxt}
+            onDownloadChatMd={handleDownloadMd}
+            onDownloadApiLog={handleDownloadApiLog}
+            hasChat={messages.length > 0}
+            hasApiLog={!!sessionId}
+          />
         </div>
       </header>
 
@@ -202,8 +279,6 @@ export default function App() {
             isRunning={isRunning}
             statusText={statusText}
           />
-
-          <ExportBar sessionId={sessionId} />
         </div>
       </main>
     </div>
