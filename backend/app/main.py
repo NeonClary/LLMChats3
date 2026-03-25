@@ -31,7 +31,8 @@ async def lifespan(app: FastAPI):
     LOG.info("Starting up — authenticating with HANA...")
     try:
         await hana_client.authenticate()
-        LOG.info("HANA auth complete.")
+        await hana_client.get_models()
+        LOG.info("HANA auth complete, persona cache populated.")
     except Exception as exc:
         LOG.warning("HANA auth failed (Neon models will be unavailable): %s", exc)
     yield

@@ -15,7 +15,7 @@ _shared_client: httpx.AsyncClient | None = None
 def _get_client() -> httpx.AsyncClient:
     global _shared_client
     if _shared_client is None or _shared_client.is_closed:
-        _shared_client = httpx.AsyncClient(timeout=60.0)
+        _shared_client = httpx.AsyncClient(timeout=45.0)
     return _shared_client
 
 
@@ -26,6 +26,7 @@ async def openai_chat_completion(
     messages: list[dict[str, str]],
     temperature: float = 0.7,
     max_tokens: int = 1024,
+    timeout: float | None = None,
 ) -> dict[str, Any]:
     """Send a chat completion request to any OpenAI-compatible endpoint."""
     url = f"{base_url.rstrip('/')}/chat/completions"
@@ -42,22 +43,28 @@ async def openai_chat_completion(
     _NO_TEMPERATURE_MODELS = {"o1", "o1-mini", "o1-preview", "o3", "o3-mini", "o4-mini"}
     skip_temp = any(model.startswith(prefix) for prefix in _NO_TEMPERATURE_MODELS)
 
+    _THINKING_MODEL_KEYWORDS = {"thinking", "reasoner"}
+    is_thinking = any(kw in model.lower() for kw in _THINKING_MODEL_KEYWORDS)
+    effective_max = max_tokens * 4 if is_thinking else max_tokens
+
     body: dict[str, Any] = {
         "model": model,
         "messages": messages,
     }
     if needs_mct:
-        body["max_completion_tokens"] = max_tokens
+        body["max_completion_tokens"] = effective_max
     else:
-        body["max_tokens"] = max_tokens
+        body["max_tokens"] = effective_max
     if not skip_temp:
         body["temperature"] = temperature
 
+    effective_timeout = max(timeout * 2, 120) if (timeout and is_thinking) else timeout
+    req_timeout = httpx.Timeout(effective_timeout) if effective_timeout else None
     client = _get_client()
     t0 = time.time()
     for attempt in range(2):
         try:
-            resp = await client.post(url, json=body, headers=headers)
+            resp = await client.post(url, json=body, headers=headers, timeout=req_timeout)
             if resp.status_code >= 400 and attempt == 0:
                 LOG.warning("Error %d on %s (attempt 1), retrying in 1.1s", resp.status_code, model)
                 await asyncio.sleep(1.1)

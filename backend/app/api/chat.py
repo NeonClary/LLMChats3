@@ -122,17 +122,23 @@ async def api_start_chat(req: StartChatRequest, request: Request):
         name=req.persona_a_name or "Persona A",
         model_id=ra["model_id"],
         role_prompt=req.persona_a_role,
-        base_url=ra["base_url"],
-        api_key=ra["api_key"],
+        base_url=ra.get("base_url", ""),
+        api_key=ra.get("api_key", ""),
         display_name=ra["display_name"],
+        is_neon=ra.get("is_neon", False),
+        hana_model_id=ra.get("hana_model_id", ""),
+        persona_name=ra.get("persona_name", ""),
     )
     session.persona_b = Persona(
         name=req.persona_b_name or "Persona B",
         model_id=rb["model_id"],
         role_prompt=req.persona_b_role,
-        base_url=rb["base_url"],
-        api_key=rb["api_key"],
+        base_url=rb.get("base_url", ""),
+        api_key=rb.get("api_key", ""),
         display_name=rb["display_name"],
+        is_neon=rb.get("is_neon", False),
+        hana_model_id=rb.get("hana_model_id", ""),
+        persona_name=rb.get("persona_name", ""),
     )
 
     async def event_stream():

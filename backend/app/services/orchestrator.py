@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any, AsyncIterator
 
 from app.clients.openai_compat import openai_chat_completion
+from app.clients.llm_router import chat_completion as unified_chat_completion
 from app.config import settings
 
 LOG = logging.getLogger(__name__)
@@ -17,19 +18,23 @@ LOG = logging.getLogger(__name__)
 # Prompt templates
 # ---------------------------------------------------------------------------
 
+_BREVITY = (
+    " Keep your reply short — 2-4 sentences, like a casual chat message, not an email or essay."
+)
+
 AUTO_START_PROMPT = (
     "You're starting a conversation with someone new. Here is some information about them: "
     "{other_role}\n\n"
     "Consider connections between this information and what you know about yourself, and say "
     "something that could start a conversation with that new person. Speak in the first person, "
-    "as if directly to the other person."
+    "as if directly to the other person." + _BREVITY
 )
 
 FIRST_REPLY_PROMPT = (
     "Someone just started a conversation with you, this is what they said: {last_message}\n\n"
     "Consider connections between this conversation starter and what you know about yourself, "
     "and say something that could continue the conversation with that new person. Speak in the "
-    "first person, as if directly to the other person."
+    "first person, as if directly to the other person." + _BREVITY
 )
 
 CONTINUE_PROMPT = (
@@ -38,7 +43,7 @@ CONTINUE_PROMPT = (
     "Consider how human conversations generally progress, and provide a response. If the last "
     "reply in the conversation is one which might indicate a human is losing interest in or "
     "wrapping up the conversation, then make a response which will help wrap up and close the "
-    "conversation."
+    "conversation." + _BREVITY
 )
 
 WRAP_UP_PROMPT = (
@@ -46,7 +51,7 @@ WRAP_UP_PROMPT = (
     "the conversation. Here is the conversation:\n\n{history}\n\n"
     "Consider how human conversations generally progress, and provide a response intended to "
     "start wrapping up the conversation. It should be a response well aligned in tone with the "
-    "conversation so far and with what you know about yourself."
+    "conversation so far and with what you know about yourself." + _BREVITY
 )
 
 END_CONVERSATION_PROMPT = (
@@ -54,7 +59,7 @@ END_CONVERSATION_PROMPT = (
     "{history}\n\n"
     "Consider how human conversations generally progress, and provide a response intended to "
     "end the conversation. It should be a response well aligned in tone with the conversation "
-    "so far and with what you know about yourself."
+    "so far and with what you know about yourself." + _BREVITY
 )
 
 ORCHESTRATOR_CHECK_PROMPT = (
@@ -94,6 +99,9 @@ class Persona:
     base_url: str = ""
     api_key: str = ""
     display_name: str = ""
+    is_neon: bool = False
+    hana_model_id: str = ""
+    persona_name: str = ""
 
 
 @dataclass
@@ -142,10 +150,15 @@ async def _call_llm(
     user_content: str,
     session: Session,
     label: str = "",
-    max_tokens: int = 1024,
+    max_tokens: int = 500,
+    timeout: float = 20,
 ) -> str:
+    system_with_directive = (
+        system_content + "\n\nIMPORTANT: Respond directly in character. "
+        "Do NOT include your reasoning, thought process, or meta-commentary in your reply."
+    )
     messages = [
-        {"role": "system", "content": system_content},
+        {"role": "system", "content": system_with_directive},
         {"role": "user", "content": user_content},
     ]
     log_entry: dict[str, Any] = {
@@ -155,13 +168,20 @@ async def _call_llm(
         "request": {"messages": messages, "max_tokens": max_tokens},
     }
 
-    result = await openai_chat_completion(
-        base_url=persona.base_url,
-        api_key=persona.api_key,
-        model=persona.model_id,
+    resolved = {
+        "model_id": persona.model_id,
+        "base_url": persona.base_url,
+        "api_key": persona.api_key,
+        "is_neon": persona.is_neon,
+        "hana_model_id": persona.hana_model_id,
+        "persona_name": persona.persona_name,
+    }
+    result = await unified_chat_completion(
+        resolved=resolved,
         messages=messages,
         temperature=0.7,
         max_tokens=max_tokens,
+        timeout=timeout,
     )
 
     log_entry["response"] = result
@@ -210,6 +230,7 @@ async def _call_orchestrator(
         messages=messages,
         temperature=0.2,
         max_tokens=256,
+        timeout=20,
     )
 
     log_entry["response"] = result

@@ -20,6 +20,7 @@ class HanaClient:
         self._refresh_token: str = ""
         self._token_expiry: float = 0
         self._client = httpx.AsyncClient(timeout=30.0)
+        self._persona_cache: dict[str, str | None] = {}
 
     async def authenticate(self) -> None:
         resp = await self._client.post(
@@ -76,11 +77,16 @@ class HanaClient:
         data = resp.json()
         models = []
         for m in data.get("models", []):
+            model_id = f"{m['name']}@{m['version']}"
             personas = []
             for p in m.get("personas", []):
+                pname = p.get("persona_name", "")
+                sp = p.get("system_prompt") or ""
+                cache_key = f"{model_id}:{pname}"
+                self._persona_cache[cache_key] = sp if sp else None
                 personas.append({
                     "id": p.get("id", p.get("persona_name", "")),
-                    "persona_name": p.get("persona_name", ""),
+                    "persona_name": pname,
                     "description": p.get("description"),
                     "system_prompt": p.get("system_prompt"),
                     "enabled": p.get("enabled", True),
@@ -88,10 +94,14 @@ class HanaClient:
             models.append({
                 "name": m["name"],
                 "version": m["version"],
-                "model_id": f"{m['name']}@{m['version']}",
+                "model_id": model_id,
                 "personas": personas,
             })
         return models
+
+    def get_persona_system_prompt(self, model_id: str, persona_name: str) -> str | None:
+        """Look up a persona's built-in system_prompt from the cache."""
+        return self._persona_cache.get(f"{model_id}:{persona_name}")
 
     async def get_inference(
         self,

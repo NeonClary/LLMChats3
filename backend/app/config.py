@@ -146,7 +146,26 @@ class Settings(BaseSettings):
         return providers
 
     def resolve_model(self, model_id: str) -> dict | None:
-        """Given a model_id, return {base_url, api_key, model_id} or None."""
+        """Given a model_id, return {base_url, api_key, model_id, ...} or None.
+
+        Handles both external providers and Neon HANA models (prefixed with 'neon:').
+        """
+        if model_id.startswith("neon:"):
+            parts = model_id.split(":", 2)
+            if len(parts) == 3:
+                hana_model_id = parts[1]
+                persona_name = parts[2]
+                return {
+                    "is_neon": True,
+                    "model_id": model_id,
+                    "hana_model_id": hana_model_id,
+                    "persona_name": persona_name,
+                    "display_name": persona_name,
+                    "provider": "Neon",
+                    "base_url": self.hana_base_url,
+                    "api_key": "",
+                }
+
         for prov in self.providers:
             for m in prov["models"]:
                 if m["id"] == model_id:

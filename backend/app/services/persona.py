@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from app.clients.openai_compat import openai_chat_completion
+from app.clients.llm_router import chat_completion
 from app.config import settings
 
 LOG = logging.getLogger(__name__)
@@ -43,13 +43,12 @@ async def _call_llm(model_id: str, prompt_text: str) -> dict:
         {"role": "user", "content": prompt_text},
     ]
 
-    result = await openai_chat_completion(
-        base_url=resolved["base_url"],
-        api_key=resolved["api_key"],
-        model=resolved["model_id"],
+    result = await chat_completion(
+        resolved=resolved,
         messages=messages,
         temperature=0.7,
         max_tokens=512,
+        timeout=45,
     )
 
     if result.get("error"):
