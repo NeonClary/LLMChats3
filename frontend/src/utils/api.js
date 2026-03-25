@@ -118,6 +118,22 @@ export async function setOrchestrator(modelId) {
   return resp.json();
 }
 
+export async function getSpeedPriority() {
+  const resp = await fetch(`${API_BASE}/api/chat/speed-priority`);
+  if (!resp.ok) throw new Error('Failed to get speed priority');
+  return resp.json();
+}
+
+export async function setSpeedPriority(enabled) {
+  const resp = await fetch(`${API_BASE}/api/chat/speed-priority`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!resp.ok) throw new Error('Failed to set speed priority');
+  return resp.json();
+}
+
 export async function exportChat(sessionId, fmt = 'txt') {
   const resp = await fetch(`${API_BASE}/api/chat/${sessionId}/export?fmt=${fmt}`);
   if (!resp.ok) throw new Error('Export failed');

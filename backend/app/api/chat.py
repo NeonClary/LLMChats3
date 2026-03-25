@@ -40,6 +40,10 @@ class SetOrchestratorRequest(BaseModel):
     model_id: str
 
 
+class SetSpeedPriorityRequest(BaseModel):
+    enabled: bool
+
+
 class StartChatRequest(BaseModel):
     persona_a_model_id: str
     persona_a_name: str
@@ -65,6 +69,17 @@ async def api_get_orchestrator():
 async def api_set_orchestrator(req: SetOrchestratorRequest):
     settings.orchestrator_model = req.model_id
     return {"model_id": settings.orchestrator_model}
+
+
+@router.get("/chat/speed-priority")
+async def api_get_speed_priority():
+    return {"enabled": settings.speed_priority}
+
+
+@router.put("/chat/speed-priority")
+async def api_set_speed_priority(req: SetSpeedPriorityRequest):
+    settings.speed_priority = req.enabled
+    return {"enabled": settings.speed_priority}
 
 
 @router.post("/chat/generate-role")

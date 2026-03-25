@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -7,6 +8,34 @@ from app.clients.openai_compat import openai_chat_completion
 from app.clients.hana_client import hana_client
 
 LOG = logging.getLogger(__name__)
+
+RACE_DELAY_SECONDS = 5.0
+
+_FALLBACK_CHAIN = [
+    "gemini-2.0-flash",
+    "gpt-4.1-mini",
+]
+
+
+def _pick_fallback(exclude_model_id: str) -> dict | None:
+    """Return the first usable fallback model that isn't the one we're already calling."""
+    from app.config import settings
+
+    for candidate_id in _FALLBACK_CHAIN:
+        if candidate_id == exclude_model_id:
+            continue
+        resolved = settings.resolve_model(candidate_id)
+        if resolved and not resolved.get("is_neon"):
+            return resolved
+
+    for prov in settings.providers:
+        for m in prov["models"]:
+            if m["id"] == exclude_model_id:
+                continue
+            resolved = settings.resolve_model(m["id"])
+            if resolved and not resolved.get("is_neon"):
+                return resolved
+    return None
 
 
 async def chat_completion(
@@ -19,6 +48,21 @@ async def chat_completion(
     """Unified LLM call that routes Neon models through HANA and others through OpenAI-compat."""
     if resolved.get("is_neon"):
         return await _call_hana(resolved, messages, temperature, max_tokens)
+
+    from app.config import settings
+    if settings.speed_priority:
+        return await _racing_openai(resolved, messages, temperature, max_tokens, timeout)
+
+    return await _plain_openai(resolved, messages, temperature, max_tokens, timeout)
+
+
+async def _plain_openai(
+    resolved: dict,
+    messages: list[dict[str, str]],
+    temperature: float,
+    max_tokens: int,
+    timeout: float | None,
+) -> dict[str, Any]:
     return await openai_chat_completion(
         base_url=resolved["base_url"],
         api_key=resolved["api_key"],
@@ -28,6 +72,69 @@ async def chat_completion(
         max_tokens=max_tokens,
         timeout=timeout,
     )
+
+
+async def _racing_openai(
+    resolved: dict,
+    messages: list[dict[str, str]],
+    temperature: float,
+    max_tokens: int,
+    timeout: float | None,
+) -> dict[str, Any]:
+    """Start the primary request; after RACE_DELAY_SECONDS fire a fallback and race them."""
+    primary_task = asyncio.create_task(
+        _plain_openai(resolved, messages, temperature, max_tokens, timeout),
+        name=f"primary:{resolved['model_id']}",
+    )
+
+    done, _ = await asyncio.wait({primary_task}, timeout=RACE_DELAY_SECONDS)
+    if done:
+        return primary_task.result()
+
+    fallback_resolved = _pick_fallback(resolved["model_id"])
+    if not fallback_resolved:
+        LOG.info("Speed-priority: no fallback available, waiting for primary %s", resolved["model_id"])
+        return await primary_task
+
+    LOG.info(
+        "Speed-priority: %s still pending after %.1fs — racing with fallback %s",
+        resolved["model_id"], RACE_DELAY_SECONDS, fallback_resolved["model_id"],
+    )
+    fallback_task = asyncio.create_task(
+        _plain_openai(fallback_resolved, messages, temperature, max_tokens, timeout),
+        name=f"fallback:{fallback_resolved['model_id']}",
+    )
+
+    done, pending = await asyncio.wait(
+        {primary_task, fallback_task}, return_when=asyncio.FIRST_COMPLETED,
+    )
+    winner = done.pop()
+    result = winner.result()
+
+    if result.get("error"):
+        if pending:
+            other = pending.pop()
+            try:
+                other_result = await other
+                if not other_result.get("error"):
+                    LOG.info("Speed-priority: winner had error, using other result")
+                    return other_result
+            except Exception:
+                pass
+        return result
+
+    for task in pending:
+        task.cancel()
+
+    used_model = result.get("model", "")
+    if winner is fallback_task:
+        LOG.info("Speed-priority: fallback %s won the race", used_model)
+        result["used_fallback"] = True
+        result["original_model"] = resolved["model_id"]
+    else:
+        LOG.info("Speed-priority: primary %s won the race", used_model)
+
+    return result
 
 
 async def _call_hana(

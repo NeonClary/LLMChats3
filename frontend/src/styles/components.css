@@ -646,6 +646,21 @@
   font-style: italic;
 }
 
+.dev-panel-divider {
+  height: 1px;
+  background: var(--border-color, rgba(128, 128, 128, 0.2));
+  margin: 4px 0;
+}
+
+.dev-panel-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 4px 10px 2px;
+}
+
 .dev-panel-download-item {
   display: none !important;
 }

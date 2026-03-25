@@ -7,6 +7,8 @@ export default function DevMenu({
   onOrchestratorChange,
   personaMode,
   onPersonaModeChange,
+  speedPriority,
+  onSpeedPriorityChange,
   onDownloadApiLog,
   onDownloadChatTxt,
   onDownloadChatMd,
@@ -70,6 +72,21 @@ export default function DevMenu({
             <button onClick={() => { setOrchOpen(o => !o); setQ(''); }}>
               Orchestrator model… <ChevronRight size={12} style={{ marginLeft: 'auto', opacity: 0.5 }} />
             </button>
+            <div className="dev-panel-divider" />
+            <div className="dev-panel-label">Response priority</div>
+            <button
+              disabled={!speedPriority}
+              onClick={() => { onSpeedPriorityChange(false); }}
+            >
+              Prioritize model choice
+            </button>
+            <button
+              disabled={speedPriority}
+              onClick={() => { onSpeedPriorityChange(true); }}
+            >
+              Prioritize conversation speed
+            </button>
+            <div className="dev-panel-divider" />
             <button
               disabled={personaMode === 'structured'}
               onClick={() => { onPersonaModeChange('structured'); setOpen(false); }}

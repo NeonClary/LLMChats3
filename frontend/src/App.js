@@ -6,7 +6,7 @@ import ChatControls from './components/ChatControls';
 import ChatArea from './components/ChatArea';
 import DevMenu from './components/DevMenu';
 import AuthBadge from './components/AuthBadge';
-import { fetchModels, generateRole, generateRoleFreeform, startChat, getOrchestrator, setOrchestrator, exportChat, exportApiLog, getAuthStatus } from './utils/api';
+import { fetchModels, generateRole, generateRoleFreeform, startChat, getOrchestrator, setOrchestrator, getSpeedPriority, setSpeedPriority, exportChat, exportApiLog, getAuthStatus } from './utils/api';
 import './styles/variables.css';
 import './styles/layout.css';
 import './styles/components.css';
@@ -44,6 +44,7 @@ export default function App() {
   const [chatFinished, setChatFinished] = useState(false);
   const [orchestratorModel, setOrchestratorModel] = useState('');
   const [personaMode, setPersonaMode] = useState('structured');
+  const [speedPriority, setSpeedPriorityState] = useState(false);
   const [auth, setAuth] = useState(null);
   const abortRef = useRef(null);
 
@@ -62,6 +63,9 @@ export default function App() {
       .catch(err => console.error('Failed to load models:', err));
     getOrchestrator()
       .then(data => setOrchestratorModel(data.model_id || ''))
+      .catch(() => {});
+    getSpeedPriority()
+      .then(data => setSpeedPriorityState(!!data.enabled))
       .catch(() => {});
     getAuthStatus().then(setAuth).catch(() => {});
   }, []);
@@ -92,6 +96,15 @@ export default function App() {
       setOrchestratorModel(modelId || '');
     } catch (err) {
       console.error('Failed to set orchestrator:', err);
+    }
+  }, []);
+
+  const handleSpeedPriorityChange = useCallback(async (enabled) => {
+    try {
+      await setSpeedPriority(enabled);
+      setSpeedPriorityState(enabled);
+    } catch (err) {
+      console.error('Failed to set speed priority:', err);
     }
   }, []);
 
@@ -244,6 +257,8 @@ export default function App() {
             onOrchestratorChange={handleOrchestratorChange}
             personaMode={personaMode}
             onPersonaModeChange={setPersonaMode}
+            speedPriority={speedPriority}
+            onSpeedPriorityChange={handleSpeedPriorityChange}
             onDownloadChatTxt={handleDownloadTxt}
             onDownloadChatMd={handleDownloadMd}
             onDownloadApiLog={handleDownloadApiLog}

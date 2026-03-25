@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
 
     orchestrator_model: str = "gpt-4o-mini"
+    speed_priority: bool = False
 
     cors_origins: str = "http://localhost:3000,http://localhost:3001,http://localhost:3002"
 
