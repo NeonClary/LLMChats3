@@ -46,20 +46,20 @@ CONTINUE_PROMPT = (
     "conversation." + _BREVITY
 )
 
-WRAP_UP_PROMPT = (
-    "You are having a conversation with another person, but now it is necessary to wrap up "
-    "the conversation. Here is the conversation:\n\n{history}\n\n"
-    "Consider how human conversations generally progress, and provide a response intended to "
-    "start wrapping up the conversation. It should be a response well aligned in tone with the "
-    "conversation so far and with what you know about yourself." + _BREVITY
+WINDING_NEXT_PROMPT = (
+    "You are having a conversation with another person, here is the conversation so far:\n\n"
+    "{history}\n\n"
+    "Consider how human conversations generally progress, and provide a response which will "
+    "wrap up and close the conversation. This is the last reply you will give in this "
+    "conversation." + _BREVITY
 )
 
-END_CONVERSATION_PROMPT = (
-    "You are ending a conversation with another person, here is the conversation:\n\n"
+WINDING_FINAL_PROMPT = (
+    "You are having a conversation with another person, here is the conversation so far:\n\n"
     "{history}\n\n"
-    "Consider how human conversations generally progress, and provide a response intended to "
-    "end the conversation. It should be a response well aligned in tone with the conversation "
-    "so far and with what you know about yourself." + _BREVITY
+    "Consider how human conversations generally progress, and focus on the last two messages "
+    "in this conversation. Provide a very short response which closes the conversation."
+    + _BREVITY
 )
 
 ORCHESTRATOR_CHECK_PROMPT = (
@@ -67,23 +67,6 @@ ORCHESTRATOR_CHECK_PROMPT = (
     "the latest message indicates the speaker is losing interest or wrapping up the conversation. "
     "Reply with ONLY a JSON object: {{\"winding_down\": true}} or {{\"winding_down\": false}}. "
     "No other text.\n\nLatest message:\n{message}"
-)
-
-ORCHESTRATOR_END_CHECK_PROMPT = (
-    "You are monitoring a conversation between two people. Both participants have just sent "
-    "messages intended to end the conversation. Evaluate whether these two messages together "
-    "form a reasonable, coherent end to the conversation.\n\n"
-    "Full conversation:\n{history}\n\n"
-    "Reply with ONLY a JSON object: {{\"good_ending\": true}} or {{\"good_ending\": false}}. "
-    "No other text."
-)
-
-ORCHESTRATOR_HUMOROUS_SIGNOFF_PROMPT = (
-    "You've been monitoring a conversation between two people who just can't seem to stop "
-    "talking. Write a single brief, pithy, humorous, and positive-attitude statement about "
-    "having to end the conversation — maybe something about how hard it is to stop talking "
-    "when you're enjoying a conversation, or a playful 'sorry folks, we've got to move on' "
-    "type remark. Keep it to 1-2 sentences."
 )
 
 
@@ -113,10 +96,7 @@ class Session:
     api_log: list[dict[str, Any]] = field(default_factory=list)
     a_count: int = 0
     b_count: int = 0
-    wrap_sent: bool = False
     end_mode: bool = False
-    a_winding: bool = False
-    b_winding: bool = False
     finished: bool = False
 
 
@@ -312,7 +292,6 @@ async def run_conversation(
 
         # Check orchestrator on the last message
         last_msg_text = session.messages[-1]["text"]
-        last_speaker_idx = session.messages[-1]["speaker_idx"]
 
         if not session.end_mode:
             orch_raw = await _call_orchestrator(
@@ -321,34 +300,40 @@ async def run_conversation(
                 label="winding_check",
             )
             winding = _parse_json_bool(orch_raw, "winding_down")
-            if winding:
-                if last_speaker_idx == 0:
-                    session.a_winding = True
-                else:
-                    session.b_winding = True
 
-            if session.a_winding and session.b_winding:
+            if winding:
                 session.end_mode = True
 
         # Force wrap-up at 8 messages each
-        if not session.end_mode and not session.wrap_sent:
+        if not session.end_mode:
             if session.a_count >= 8 and session.b_count >= 8:
-                session.wrap_sent = True
-                wrap_msg, wrap_elapsed = await _call_llm(
-                    current, current.role_prompt,
-                    WRAP_UP_PROMPT.format(history=history_text),
-                    session, label=f"wrap_up:{current.name}",
-                )
-                _add_message(session, current, wrap_msg, current_idx, wrap_elapsed)
-                yield _sse("message", _msg_payload(session.messages[-1], current_idx))
-
                 session.end_mode = True
-                current_idx = 1 - current_idx
-                continue
 
         if session.end_mode:
-            async for event in _end_sequence(session, participants, current_idx):
-                yield event
+            # Penultimate message: current speaker wraps up
+            history_text = _format_history(session.messages)
+            wrap_msg, wrap_elapsed = await _call_llm(
+                current, current.role_prompt,
+                WINDING_NEXT_PROMPT.format(history=history_text),
+                session, label=f"winding_next:{current.name}",
+            )
+            _add_message(session, current, wrap_msg, current_idx, wrap_elapsed)
+            yield _sse("message", _msg_payload(session.messages[-1], current_idx))
+
+            # Final message: other speaker closes
+            other_idx = 1 - current_idx
+            other = participants[other_idx]
+            history_text = _format_history(session.messages)
+            final_msg, final_elapsed = await _call_llm(
+                other, other.role_prompt,
+                WINDING_FINAL_PROMPT.format(history=history_text),
+                session, label=f"winding_final:{other.name}",
+            )
+            _add_message(session, other, final_msg, other_idx, final_elapsed)
+            yield _sse("message", _msg_payload(session.messages[-1], other_idx))
+
+            session.finished = True
+            yield _sse("system", {"text": "End of Chat"})
             break
 
         # Normal continue
@@ -363,66 +348,6 @@ async def run_conversation(
         current_idx = 1 - current_idx
 
     yield _sse("done", {})
-
-
-async def _end_sequence(
-    session: Session,
-    participants: list[Persona],
-    current_idx: int,
-) -> AsyncIterator[str]:
-    """Handle the end-of-conversation sequence with retry logic."""
-    history_text = _format_history(session.messages)
-
-    for attempt in range(5):
-        # Get end message from current participant
-        end_msg, end_elapsed = await _call_llm(
-            participants[current_idx],
-            participants[current_idx].role_prompt,
-            END_CONVERSATION_PROMPT.format(history=history_text),
-            session,
-            label=f"end:{participants[current_idx].name}:attempt{attempt}",
-        )
-        _add_message(session, participants[current_idx], end_msg, current_idx, end_elapsed)
-        yield _sse("message", _msg_payload(session.messages[-1], current_idx))
-
-        # Get end message from the other participant
-        other_idx = 1 - current_idx
-        history_text = _format_history(session.messages)
-        end_msg2, end_elapsed2 = await _call_llm(
-            participants[other_idx],
-            participants[other_idx].role_prompt,
-            END_CONVERSATION_PROMPT.format(history=history_text),
-            session,
-            label=f"end:{participants[other_idx].name}:attempt{attempt}",
-        )
-        _add_message(session, participants[other_idx], end_msg2, other_idx, end_elapsed2)
-        yield _sse("message", _msg_payload(session.messages[-1], other_idx))
-
-        # Ask orchestrator if this is a good ending
-        history_text = _format_history(session.messages)
-        orch_raw = await _call_orchestrator(
-            ORCHESTRATOR_END_CHECK_PROMPT.format(history=history_text),
-            session,
-            label=f"end_check:attempt{attempt}",
-        )
-        good = _parse_json_bool(orch_raw, "good_ending")
-
-        if good:
-            session.finished = True
-            yield _sse("system", {"text": "End of Chat"})
-            return
-
-        current_idx = other_idx
-
-    # 5 attempts exhausted — humorous sign-off
-    signoff = await _call_orchestrator(
-        ORCHESTRATOR_HUMOROUS_SIGNOFF_PROMPT,
-        session,
-        label="humorous_signoff",
-    )
-    session.finished = True
-    yield _sse("system", {"text": signoff})
-    yield _sse("system", {"text": "End of Chat"})
 
 
 # ---------------------------------------------------------------------------
