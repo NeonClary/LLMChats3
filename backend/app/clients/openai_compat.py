@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from typing import Any
 
@@ -11,12 +12,41 @@ LOG = logging.getLogger(__name__)
 
 _shared_client: httpx.AsyncClient | None = None
 
+_THINK_TAG_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+_REASONING_BLOCK_RE = re.compile(
+    r"<(reasoning|reflection|inner_thoughts|scratchpad)>.*?</\1>",
+    re.DOTALL,
+)
+
+_MAX_COMPLETION_TOKEN_MODELS = {
+    "o1", "o1-mini", "o1-preview", "o3", "o3-mini", "o4-mini",
+    "gpt-5", "gpt-oss",
+}
+_NO_TEMPERATURE_MODELS = {"o1", "o1-mini", "o1-preview", "o3", "o3-mini", "o4-mini"}
+
 
 def _get_client() -> httpx.AsyncClient:
     global _shared_client
     if _shared_client is None or _shared_client.is_closed:
         _shared_client = httpx.AsyncClient(timeout=45.0)
     return _shared_client
+
+
+def _strip_thinking(text: str) -> str:
+    """Remove chain-of-thought artifacts from any model's response."""
+    text = _THINK_TAG_RE.sub("", text)
+    text = _REASONING_BLOCK_RE.sub("", text)
+    return text.strip()
+
+
+def _detect_thinking_model(model: str, msg: dict) -> bool:
+    """Detect thinking models from the response itself, not just the model name."""
+    if msg.get("reasoning_content") or msg.get("reasoning"):
+        return True
+    content = msg.get("content") or ""
+    if _THINK_TAG_RE.search(content):
+        return True
+    return False
 
 
 async def openai_chat_completion(
@@ -34,18 +64,11 @@ async def openai_chat_completion(
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    _MAX_COMPLETION_TOKEN_MODELS = {
-        "o1", "o1-mini", "o1-preview", "o3", "o3-mini", "o4-mini",
-        "gpt-5", "gpt-oss",
-    }
     needs_mct = any(model.startswith(prefix) for prefix in _MAX_COMPLETION_TOKEN_MODELS)
-
-    _NO_TEMPERATURE_MODELS = {"o1", "o1-mini", "o1-preview", "o3", "o3-mini", "o4-mini"}
     skip_temp = any(model.startswith(prefix) for prefix in _NO_TEMPERATURE_MODELS)
 
-    _THINKING_MODEL_KEYWORDS = {"thinking", "reasoner"}
-    is_thinking = any(kw in model.lower() for kw in _THINKING_MODEL_KEYWORDS)
-    effective_max = max_tokens * 4 if is_thinking else max_tokens
+    effective_max = max_tokens * 4
+    effective_timeout = max(timeout * 2, 120) if timeout else timeout
 
     body: dict[str, Any] = {
         "model": model,
@@ -58,7 +81,6 @@ async def openai_chat_completion(
     if not skip_temp:
         body["temperature"] = temperature
 
-    effective_timeout = max(timeout * 2, 120) if (timeout and is_thinking) else timeout
     req_timeout = httpx.Timeout(effective_timeout) if effective_timeout else None
     client = _get_client()
     t0 = time.time()
@@ -75,10 +97,17 @@ async def openai_chat_completion(
             choices = data.get("choices", [])
             text = ""
             finish_reason = ""
+            had_thinking = False
             if choices:
                 msg = choices[0].get("message") or {}
                 text = msg.get("content") or ""
                 finish_reason = choices[0].get("finish_reason") or ""
+                had_thinking = _detect_thinking_model(model, msg)
+                text = _strip_thinking(text)
+
+            if had_thinking:
+                LOG.info("Stripped thinking content from %s response", model)
+
             return {
                 "response": text.strip(),
                 "elapsed_seconds": round(elapsed, 2),

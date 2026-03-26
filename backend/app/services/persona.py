@@ -84,7 +84,11 @@ async def _call_llm(model_id: str, prompt_text: str) -> dict:
         return {"role_prompt": "", "error": f"Unknown model: {model_id}"}
 
     messages = [
-        {"role": "system", "content": "You are a helpful assistant that creates character prompts."},
+        {"role": "system", "content": (
+            "You are a helpful assistant that creates character prompts. "
+            "Respond ONLY with the finished role prompt text. Do NOT include your reasoning, "
+            "thought process, analysis, draft notes, or any meta-commentary."
+        )},
         {"role": "user", "content": prompt_text},
     ]
 

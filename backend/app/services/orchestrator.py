@@ -154,8 +154,10 @@ async def _call_llm(
     timeout: float = 20,
 ) -> str:
     system_with_directive = (
-        system_content + "\n\nIMPORTANT: Respond directly in character. "
-        "Do NOT include your reasoning, thought process, or meta-commentary in your reply."
+        system_content + "\n\nIMPORTANT: Respond ONLY with your in-character dialogue. "
+        "Do NOT include your reasoning, thought process, analysis of the prompt, "
+        "meta-commentary, internal monologue, or draft notes. Output ONLY the words "
+        "your character would actually say aloud."
     )
     messages = [
         {"role": "system", "content": system_with_directive},

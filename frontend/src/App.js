@@ -52,6 +52,7 @@ export default function App() {
   const [rolePrompts, setRolePrompts] = useState(null);
   const [rolePromptsOpen, setRolePromptsOpen] = useState(false);
   const abortRef = useRef(null);
+  const lastRoleConfigRef = useRef(null);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -155,7 +156,7 @@ export default function App() {
   const selectedNameA = selections[0] ? getDisplayName(selections[0], providers, neonModels) : '';
   const selectedNameB = selections[1] ? getDisplayName(selections[1], providers, neonModels) : '';
 
-  const canStart = selections.length === 2 && !isRunning && !chatFinished;
+  const canStart = selections.length === 2 && !isRunning;
 
   const handleStop = useCallback(() => {
     if (abortRef.current) {
@@ -179,35 +180,53 @@ export default function App() {
     setMessages([]);
     setSystemMessages([]);
     setChatFinished(false);
-    setStatusText('Generating expert persona roles...');
 
     try {
-      const genA = personaMode === 'freeform'
-        ? generateRoleFreeform({ model_id: selections[0], name: personaA.name, text: personaA.freeform || '', role_style: roleStyle })
-        : generateRole({ model_id: selections[0], name: personaA.name, profile: personaA.profile, identity: personaA.identity, samples: personaA.samples, role_style: roleStyle });
-      const genB = personaMode === 'freeform'
-        ? generateRoleFreeform({ model_id: selections[1], name: personaB.name, text: personaB.freeform || '', role_style: roleStyle })
-        : generateRole({ model_id: selections[1], name: personaB.name, profile: personaB.profile, identity: personaB.identity, samples: personaB.samples, role_style: roleStyle });
-
-      const [roleA, roleB] = await Promise.all([genA, genB]);
-
-      if (controller.signal.aborted) return;
-
-      setRolePrompts({
-        a: { name: personaA.name || 'Expert Persona A', model: getDisplayName(selections[0], providers, neonModels), prompt: roleA.role_prompt },
-        b: { name: personaB.name || 'Expert Persona B', model: getDisplayName(selections[1], providers, neonModels), prompt: roleB.role_prompt },
+      const currentConfig = JSON.stringify({
+        selections, personaMode, roleStyle,
+        a: personaMode === 'freeform'
+          ? { name: personaA.name, freeform: personaA.freeform || '' }
+          : { name: personaA.name, profile: personaA.profile, identity: personaA.identity, samples: personaA.samples },
+        b: personaMode === 'freeform'
+          ? { name: personaB.name, freeform: personaB.freeform || '' }
+          : { name: personaB.name, profile: personaB.profile, identity: personaB.identity, samples: personaB.samples },
       });
+
+      let cachedPrompts = rolePrompts;
+      const configChanged = currentConfig !== lastRoleConfigRef.current;
+
+      if (configChanged || !cachedPrompts) {
+        setStatusText('Generating expert persona roles...');
+
+        const genA = personaMode === 'freeform'
+          ? generateRoleFreeform({ model_id: selections[0], name: personaA.name, text: personaA.freeform || '', role_style: roleStyle })
+          : generateRole({ model_id: selections[0], name: personaA.name, profile: personaA.profile, identity: personaA.identity, samples: personaA.samples, role_style: roleStyle });
+        const genB = personaMode === 'freeform'
+          ? generateRoleFreeform({ model_id: selections[1], name: personaB.name, text: personaB.freeform || '', role_style: roleStyle })
+          : generateRole({ model_id: selections[1], name: personaB.name, profile: personaB.profile, identity: personaB.identity, samples: personaB.samples, role_style: roleStyle });
+
+        const [roleA, roleB] = await Promise.all([genA, genB]);
+
+        if (controller.signal.aborted) return;
+
+        cachedPrompts = {
+          a: { name: personaA.name || 'Expert Persona A', model: getDisplayName(selections[0], providers, neonModels), prompt: roleA.role_prompt },
+          b: { name: personaB.name || 'Expert Persona B', model: getDisplayName(selections[1], providers, neonModels), prompt: roleB.role_prompt },
+        };
+        setRolePrompts(cachedPrompts);
+        lastRoleConfigRef.current = currentConfig;
+      }
 
       setStatusText('Starting conversation...');
 
       await startChat(
         {
           persona_a_model_id: selections[0],
-          persona_a_name: personaA.name || 'Expert Persona A',
-          persona_a_role: roleA.role_prompt,
+          persona_a_name: cachedPrompts.a.name,
+          persona_a_role: cachedPrompts.a.prompt,
           persona_b_model_id: selections[1],
-          persona_b_name: personaB.name || 'Expert Persona B',
-          persona_b_role: roleB.role_prompt,
+          persona_b_name: cachedPrompts.b.name,
+          persona_b_role: cachedPrompts.b.prompt,
           starter_text: starterText,
         },
         {
@@ -249,7 +268,7 @@ export default function App() {
       abortRef.current = null;
       getAuthStatus().then(setAuth).catch(() => {});
     }
-  }, [selections, personaA, personaB, personaMode, roleStyle]);
+  }, [selections, personaA, personaB, personaMode, roleStyle, rolePrompts]);
 
   return (
     <div className="app">
