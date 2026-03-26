@@ -7,20 +7,47 @@ from app.config import settings
 
 LOG = logging.getLogger(__name__)
 
-ROLE_GENERATION_PROMPT = (
-    'Write a concise but highly informative 3-5 sentence prompt which when used as the '
-    '"role" input will enable an LLM to respond in a way that sounds like the authentic '
-    "voice of the person/character whose writing and/or speaking samples are provided here. "
-    "Consider personality, speech patterns, identity, interests, motivation, and "
-    "conversational style. Integrate the identity statement, profile information and name "
-    "provided.\n"
+# ---------------------------------------------------------------------------
+# Structured input prompts
+# ---------------------------------------------------------------------------
+
+STRUCTURED_AI_COMPLETED_PROMPT = (
+    "You will receive structured information about a character or persona: a name, an identity "
+    "statement, a profile, and optionally writing/speech samples. Some fields may be sparse or "
+    "missing. Write a complete, vivid 3-5 sentence role prompt that an LLM can use to "
+    "convincingly embody this persona in a conversation.\n\n"
+    "If any fields are sparse, infer plausible personality traits, speech patterns, interests, "
+    "and conversational style from whatever clues are available. Fill in realistic detail so "
+    "the role prompt is rich and actionable — never produce a vague or skeletal prompt.\n\n"
+    "Cover: personality, tone and speech patterns, background/expertise, interests and "
+    "motivations, and how they would naturally interact in a casual conversation.\n\n"
     "The name is: {name}\n"
     "The identity statement is: {identity}\n"
     "The profile is: {profile}\n"
     "Here are the writing and/or speech samples: {samples}"
 )
 
-FREEFORM_ROLE_GENERATION_PROMPT = (
+STRUCTURED_EXACT_PROMPT = (
+    "You will receive structured information about a character or persona: a name, an identity "
+    "statement, a profile, and optionally writing/speech samples. Combine this information into "
+    "a coherent 3-5 sentence role prompt that an LLM can use to embody this persona in a "
+    "conversation.\n\n"
+    "IMPORTANT: Use ONLY the information explicitly provided. Do not invent, assume, or infer "
+    "any traits, background, opinions, or speech patterns beyond what is stated. Your job is "
+    "purely to organize and lightly rephrase the provided facts into a smooth, usable role "
+    "prompt — add linking words and natural sentence flow, but no new content. If a field is "
+    "empty or says '(not provided)', simply omit it.\n\n"
+    "The name is: {name}\n"
+    "The identity statement is: {identity}\n"
+    "The profile is: {profile}\n"
+    "Here are the writing and/or speech samples: {samples}"
+)
+
+# ---------------------------------------------------------------------------
+# Freeform input prompts
+# ---------------------------------------------------------------------------
+
+FREEFORM_AI_COMPLETED_PROMPT = (
     "You will receive freeform information about a character or persona. The input may be "
     "detailed (with writing samples, background, etc.) or very brief (just a name or a short "
     "description). Regardless of how much is provided, write a complete, vivid 3-5 sentence "
@@ -31,6 +58,20 @@ FREEFORM_ROLE_GENERATION_PROMPT = (
     "actionable — never produce a vague or skeletal prompt.\n\n"
     "Cover: personality, tone and speech patterns, background/expertise, interests and "
     "motivations, and how they would naturally interact in a casual conversation.\n\n"
+    "The persona's name is: {name}\n\n"
+    "Here is everything provided about this persona:\n"
+    "---\n{text}\n---"
+)
+
+FREEFORM_EXACT_PROMPT = (
+    "You will receive freeform information about a character or persona. Combine this "
+    "information into a coherent 3-5 sentence role prompt that an LLM can use to embody "
+    "this persona in a conversation.\n\n"
+    "IMPORTANT: Use ONLY the information explicitly provided. Do not invent, assume, or infer "
+    "any traits, background, opinions, or speech patterns beyond what is stated. Your job is "
+    "purely to organize and lightly rephrase the user's text into a smooth, usable role "
+    "prompt — add linking words and natural sentence flow, but no new content. If very little "
+    "was provided, the role prompt should be correspondingly brief.\n\n"
     "The persona's name is: {name}\n\n"
     "Here is everything provided about this persona:\n"
     "---\n{text}\n---"
@@ -70,9 +111,11 @@ async def generate_role_prompt(
     profile: str,
     identity: str,
     samples: str,
+    role_style: str = "exact",
 ) -> dict:
     """Use the selected LLM to distill structured persona inputs into a role prompt."""
-    prompt_text = ROLE_GENERATION_PROMPT.format(
+    template = STRUCTURED_AI_COMPLETED_PROMPT if role_style == "ai_completed" else STRUCTURED_EXACT_PROMPT
+    prompt_text = template.format(
         name=name or "(not provided)",
         identity=identity or "(not provided)",
         profile=profile or "(not provided)",
@@ -85,9 +128,11 @@ async def generate_role_prompt_freeform(
     model_id: str,
     name: str,
     text: str,
+    role_style: str = "ai_completed",
 ) -> dict:
     """Use the selected LLM to distill a single freeform text block into a role prompt."""
-    prompt_text = FREEFORM_ROLE_GENERATION_PROMPT.format(
+    template = FREEFORM_AI_COMPLETED_PROMPT if role_style == "ai_completed" else FREEFORM_EXACT_PROMPT
+    prompt_text = template.format(
         name=name or "(not provided)",
         text=text or "(not provided)",
     )

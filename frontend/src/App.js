@@ -44,6 +44,7 @@ export default function App() {
   const [chatFinished, setChatFinished] = useState(false);
   const [orchestratorModel, setOrchestratorModel] = useState('');
   const [personaMode, setPersonaMode] = useState('freeform');
+  const [roleStyle, setRoleStyle] = useState('ai_completed');
   const [speedPriority, setSpeedPriorityState] = useState(false);
   const [auth, setAuth] = useState(null);
   const [showResponseTime, setShowResponseTime] = useState(false);
@@ -101,6 +102,11 @@ export default function App() {
     } catch (err) {
       console.error('Failed to set orchestrator:', err);
     }
+  }, []);
+
+  const handlePersonaModeChange = useCallback((mode) => {
+    setPersonaMode(mode);
+    setRoleStyle(mode === 'freeform' ? 'ai_completed' : 'exact');
   }, []);
 
   const handleSpeedPriorityChange = useCallback(async (enabled) => {
@@ -177,11 +183,11 @@ export default function App() {
 
     try {
       const genA = personaMode === 'freeform'
-        ? generateRoleFreeform({ model_id: selections[0], name: personaA.name, text: personaA.freeform || '' })
-        : generateRole({ model_id: selections[0], name: personaA.name, profile: personaA.profile, identity: personaA.identity, samples: personaA.samples });
+        ? generateRoleFreeform({ model_id: selections[0], name: personaA.name, text: personaA.freeform || '', role_style: roleStyle })
+        : generateRole({ model_id: selections[0], name: personaA.name, profile: personaA.profile, identity: personaA.identity, samples: personaA.samples, role_style: roleStyle });
       const genB = personaMode === 'freeform'
-        ? generateRoleFreeform({ model_id: selections[1], name: personaB.name, text: personaB.freeform || '' })
-        : generateRole({ model_id: selections[1], name: personaB.name, profile: personaB.profile, identity: personaB.identity, samples: personaB.samples });
+        ? generateRoleFreeform({ model_id: selections[1], name: personaB.name, text: personaB.freeform || '', role_style: roleStyle })
+        : generateRole({ model_id: selections[1], name: personaB.name, profile: personaB.profile, identity: personaB.identity, samples: personaB.samples, role_style: roleStyle });
 
       const [roleA, roleB] = await Promise.all([genA, genB]);
 
@@ -243,7 +249,7 @@ export default function App() {
       abortRef.current = null;
       getAuthStatus().then(setAuth).catch(() => {});
     }
-  }, [selections, personaA, personaB, personaMode]);
+  }, [selections, personaA, personaB, personaMode, roleStyle]);
 
   return (
     <div className="app">
@@ -268,7 +274,9 @@ export default function App() {
             orchestratorModel={orchestratorModel}
             onOrchestratorChange={handleOrchestratorChange}
             personaMode={personaMode}
-            onPersonaModeChange={setPersonaMode}
+            onPersonaModeChange={handlePersonaModeChange}
+            roleStyle={roleStyle}
+            onRoleStyleChange={setRoleStyle}
             speedPriority={speedPriority}
             onSpeedPriorityChange={handleSpeedPriorityChange}
             showResponseTime={showResponseTime}

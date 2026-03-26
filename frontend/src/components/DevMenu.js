@@ -7,6 +7,8 @@ export default function DevMenu({
   onOrchestratorChange,
   personaMode,
   onPersonaModeChange,
+  roleStyle,
+  onRoleStyleChange,
   speedPriority,
   onSpeedPriorityChange,
   showResponseTime,
@@ -104,6 +106,20 @@ export default function DevMenu({
               onClick={() => { onPersonaModeChange('freeform'); setOpen(false); }}
             >
               Freeform expert persona input
+            </button>
+            <div className="dev-panel-divider" />
+            <div className="dev-panel-label">Role generation</div>
+            <button
+              disabled={roleStyle === 'ai_completed'}
+              onClick={() => onRoleStyleChange('ai_completed')}
+            >
+              AI completed roles
+            </button>
+            <button
+              disabled={roleStyle === 'exact'}
+              onClick={() => onRoleStyleChange('exact')}
+            >
+              Exact user roles
             </button>
             <div className="dev-panel-divider" />
             <div className="dev-panel-label">Display options</div>

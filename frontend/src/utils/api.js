@@ -8,11 +8,11 @@ export async function fetchModels() {
   return resp.json();
 }
 
-export async function generateRole({ model_id, name, profile, identity, samples }) {
+export async function generateRole({ model_id, name, profile, identity, samples, role_style }) {
   const resp = await fetch(`${API_BASE}/api/chat/generate-role`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model_id, name, profile, identity, samples }),
+    body: JSON.stringify({ model_id, name, profile, identity, samples, role_style }),
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }));
@@ -21,11 +21,11 @@ export async function generateRole({ model_id, name, profile, identity, samples 
   return resp.json();
 }
 
-export async function generateRoleFreeform({ model_id, name, text }) {
+export async function generateRoleFreeform({ model_id, name, text, role_style }) {
   const resp = await fetch(`${API_BASE}/api/chat/generate-role-freeform`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model_id, name, text }),
+    body: JSON.stringify({ model_id, name, text, role_style }),
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }));

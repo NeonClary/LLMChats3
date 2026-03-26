@@ -28,12 +28,14 @@ class GenerateRoleRequest(BaseModel):
     profile: str = ""
     identity: str = ""
     samples: str = ""
+    role_style: str = "exact"
 
 
 class GenerateRoleFreeformRequest(BaseModel):
     model_id: str
     name: str = ""
     text: str = ""
+    role_style: str = "ai_completed"
 
 
 class SetOrchestratorRequest(BaseModel):
@@ -90,6 +92,7 @@ async def api_generate_role(req: GenerateRoleRequest):
         profile=req.profile,
         identity=req.identity,
         samples=req.samples,
+        role_style=req.role_style,
     )
     if result.get("error"):
         raise HTTPException(status_code=400, detail=result["error"])
@@ -102,6 +105,7 @@ async def api_generate_role_freeform(req: GenerateRoleFreeformRequest):
         model_id=req.model_id,
         name=req.name,
         text=req.text,
+        role_style=req.role_style,
     )
     if result.get("error"):
         raise HTTPException(status_code=400, detail=result["error"])
