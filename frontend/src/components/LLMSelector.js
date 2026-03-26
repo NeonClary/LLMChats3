@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Cloud, ChevronDown, ChevronRight } from 'lucide-react';
+import { Cloud, ChevronDown, ChevronRight, User } from 'lucide-react';
 
 export default function LLMSelector({ providers, neonModels, selections, onSelectionsChange }) {
   const [openGroups, setOpenGroups] = useState({});
@@ -39,6 +39,8 @@ export default function LLMSelector({ providers, neonModels, selections, onSelec
     return '';
   };
 
+  const shortName = (name) => name.split('/').pop() || name;
+
   const renderModel = (model) => (
     <button
       key={model.id}
@@ -53,57 +55,75 @@ export default function LLMSelector({ providers, neonModels, selections, onSelec
     </button>
   );
 
-  const neonGroups = {};
-  for (const m of (neonModels || [])) {
-    const shortName = m.name.split('/').pop() || m.name;
-    if (!neonGroups[shortName]) neonGroups[shortName] = [];
-    for (const p of (m.personas || [])) {
-      if (p.enabled === false) continue;
-      neonGroups[shortName].push({
-        id: `neon:${m.model_id}:${p.persona_name}`,
-        name: p.persona_name,
-        params: '',
-      });
-    }
-  }
+  const renderNeonPersona = (persona) => (
+    <button
+      key={persona.id}
+      className="neon-persona-item"
+      onClick={() => handleClick(persona.id)}
+    >
+      <div className={getIndicatorClass(persona.id)}>
+        {getLabel(persona.id) && <span className="selection-label">{getLabel(persona.id)}</span>}
+      </div>
+      <div className="persona-details">
+        <div className="persona-name-row">
+          <User size={12} />
+          {persona.name}
+        </div>
+        {persona.systemPrompt && (
+          <div className="persona-prompt-preview">
+            {persona.systemPrompt.slice(0, 120)}
+            {persona.systemPrompt.length > 120 ? '…' : ''}
+          </div>
+        )}
+        {!persona.systemPrompt && (
+          <div className="persona-prompt-preview">No system prompt (vanilla)</div>
+        )}
+      </div>
+    </button>
+  );
 
   return (
     <div className="sidebar">
       <h2 className="sidebar-title">AI Models</h2>
 
-      {selections.length > 0 && (
-        <div className="sidebar-selection-summary">
-          {selections[0] && <div><strong>A:</strong> {displayName(selections[0], providers, neonModels)}</div>}
-          {selections[1] && <div><strong>B:</strong> {displayName(selections[1], providers, neonModels)}</div>}
-        </div>
-      )}
-
-      {Object.keys(neonGroups).length > 0 && (
+      {(neonModels || []).length > 0 && (
         <div className="sidebar-section">
           <h3 className="selector-title">
             <img src="/neon-logo.png" alt="" className="selector-title-icon" />
             Neon.ai Models
           </h3>
-          {Object.entries(neonGroups).map(([groupName, models]) => {
-            const key = `neon-${groupName}`;
-            const isOpen = !!openGroups[key];
-            return (
-              <div key={key} className="provider-group neon-group">
-                <button className="provider-accordion-header" onClick={() => toggleGroup(key)}>
-                  <span className="provider-accordion-title">{groupName}</span>
-                  <span className="provider-accordion-meta">
-                    <span className="provider-model-count">{models.length}</span>
-                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                  </span>
-                </button>
-                {isOpen && (
-                  <div className="model-list">
-                    {models.map(renderModel)}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          <div className="neon-model-list">
+            {[...(neonModels || [])].sort((a, b) => shortName(a.name).localeCompare(shortName(b.name))).map(model => {
+              const key = `neon-${model.model_id}`;
+              const isOpen = !!openGroups[key];
+              const activePersonas = (model.personas || []).filter(p => p.enabled !== false);
+              return (
+                <div key={key} className="neon-model-card">
+                  <button
+                    className="neon-model-header"
+                    onClick={() => toggleGroup(key)}
+                  >
+                    <div className="neon-model-info">
+                      <span className="neon-model-name">{shortName(model.name)}</span>
+                      {model.version && <span className="neon-model-version">v{model.version}</span>}
+                    </div>
+                    <div className="neon-model-meta">
+                      {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    </div>
+                  </button>
+                  {isOpen && (
+                    <div className="neon-persona-list">
+                      {activePersonas.map(persona => renderNeonPersona({
+                        id: `neon:${model.model_id}:${persona.persona_name}`,
+                        name: persona.persona_name,
+                        systemPrompt: persona.system_prompt || '',
+                      }))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -121,7 +141,6 @@ export default function LLMSelector({ providers, neonModels, selections, onSelec
                 <button className="provider-accordion-header" onClick={() => toggleGroup(key)}>
                   <span className="provider-accordion-title">{provider.name}</span>
                   <span className="provider-accordion-meta">
-                    <span className="provider-model-count">{provider.models.length}</span>
                     {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   </span>
                 </button>
@@ -137,17 +156,4 @@ export default function LLMSelector({ providers, neonModels, selections, onSelec
       )}
     </div>
   );
-}
-
-function displayName(modelId, providers, neonModels) {
-  if (modelId.startsWith('neon:')) {
-    const parts = modelId.split(':');
-    return parts[2] || modelId;
-  }
-  for (const p of (providers || [])) {
-    for (const m of p.models) {
-      if (m.id === modelId) return m.name;
-    }
-  }
-  return modelId;
 }

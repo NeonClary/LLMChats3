@@ -41,12 +41,130 @@
   overflow: hidden;
 }
 
-.provider-group.neon-group {
+.provider-group.comp-group {
+  background: var(--comp-bg);
+}
+
+/* ── Neon model cards (matching LLMComparisons) ──────────────────── */
+
+.neon-model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.neon-model-card {
+  border: 1px solid var(--neon-border);
+  border-radius: 8px;
+  overflow: hidden;
   background: var(--neon-bg);
 }
 
-.provider-group.comp-group {
-  background: var(--comp-bg);
+.neon-model-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.neon-model-header:hover {
+  background: var(--card-hover);
+}
+
+.neon-model-info {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.neon-model-name {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.neon-model-version {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.neon-model-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+}
+
+.badge.badge-neon {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--neon-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--neon-border);
+}
+
+.neon-persona-list {
+  border-top: 1px solid var(--border-muted);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.neon-persona-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.neon-persona-item:hover {
+  background: var(--card-hover);
+}
+
+.persona-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.persona-name-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-transform: capitalize;
+}
+
+.persona-prompt-preview {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 2px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .provider-accordion-header {
@@ -143,10 +261,11 @@
 
 /* Selection indicator: circle */
 .select-indicator {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  border: 2px solid var(--border-primary);
+  border: 2px solid var(--text-secondary);
+  background: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -178,18 +297,6 @@
   color: #fff;
 }
 
-.sidebar-selection-summary {
-  padding: 10px 12px;
-  background: var(--bg-tertiary);
-  border-radius: 8px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
-
-.sidebar-selection-summary strong {
-  color: var(--text-primary);
-}
 
 /* ── Accordion ─────────────────────────────────────────────────── */
 

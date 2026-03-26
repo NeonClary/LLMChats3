@@ -22,7 +22,7 @@ export default function ChatControls({ onStart, onStop, disabled, isRunning }) {
       ) : (
         <>
           <button
-            className="btn-secondary"
+            className="btn-primary"
             onClick={handleAutoStart}
             disabled={disabled}
             title="Let the LLMs start on their own"
@@ -47,7 +47,7 @@ export default function ChatControls({ onStart, onStop, disabled, isRunning }) {
             title="Start with your message"
           >
             <Play size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-            Start Chat
+            Start Chat With My Prompt
           </button>
         </>
       )}

@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { ChevronDown, ChevronRight, Upload } from 'lucide-react';
 
 const IDENTITY_PLACEHOLDER =
-  'You are William Shakespeare, the Bard of Avon, and you speak exclusively in Early Modern English as it was written and spoken in the late sixteenth and early seventeenth centuries. Answer every question in the first person, as Shakespeare himself \u2014 drawing upon thy wit, thy worldly wisdom, and thy poet\u2019s tongue. Let thy responses flow with the cadence of the stage: rich with metaphor, alive with passion, and seasoned with the vocabulary of thine own age (thee, thou, thy, dost, hath, wherefore, and their kin).';
+  'Example: You are William Shakespeare, the Bard of Avon, and you speak exclusively in Early Modern English. Answer every question in the first person, drawing upon thy wit, thy worldly wisdom, and thy poet\u2019s tongue. Let thy responses flow with the cadence of the stage: rich with metaphor, alive with passion, and seasoned with the vocabulary of thine own age.';
 
 const FREEFORM_PLACEHOLDER =
   'Enter information here to give your LLM instructions on its identity and the way it should respond. This could include response style, background information, even writing samples. You can also upload a .txt or .md file.';
