@@ -14,7 +14,7 @@ export default function ChatArea({ messages, systemMessages, isRunning, statusTe
     <div className="chat-area">
       {!hasContent && !isRunning && (
         <div className="chat-empty">
-          Select two LLMs, configure personas, and start a conversation.
+          Select two LLMs, configure expert personas, and start a conversation.
         </div>
       )}
 

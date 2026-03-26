@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronRight, Download, Settings2, Search } from 'lucide-react';
+import { ChevronRight, Download, Settings2, Search } from 'lucide-react';
 
 export default function DevMenu({
   allModels,
@@ -64,8 +64,8 @@ export default function DevMenu({
       </div>
 
       <div className="dev-dropdown-header">
-        <button className="btn-sm btn-ghost" onClick={() => { setOpen(o => !o); setOrchOpen(false); setQ(''); }}>
-          <Settings2 size={14} /> Developer <ChevronDown size={12} />
+        <button className="icon-btn" onClick={() => { setOpen(o => !o); setOrchOpen(false); setQ(''); }} title="Settings">
+          <Settings2 size={16} />
         </button>
         {open && (
           <div className="dev-panel">
@@ -91,13 +91,13 @@ export default function DevMenu({
               disabled={personaMode === 'structured'}
               onClick={() => { onPersonaModeChange('structured'); setOpen(false); }}
             >
-              Structured persona input
+              Structured expert persona input
             </button>
             <button
               disabled={personaMode === 'freeform'}
               onClick={() => { onPersonaModeChange('freeform'); setOpen(false); }}
             >
-              Freeform persona input
+              Freeform expert persona input
             </button>
             <button disabled={!hasChat} className="dev-panel-download-item" onClick={() => { onDownloadChatTxt(); setOpen(false); }}>
               Download chat as .txt

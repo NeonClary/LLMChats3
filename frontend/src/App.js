@@ -43,7 +43,7 @@ export default function App() {
   const [sessionId, setSessionId] = useState(null);
   const [chatFinished, setChatFinished] = useState(false);
   const [orchestratorModel, setOrchestratorModel] = useState('');
-  const [personaMode, setPersonaMode] = useState('structured');
+  const [personaMode, setPersonaMode] = useState('freeform');
   const [speedPriority, setSpeedPriorityState] = useState(false);
   const [auth, setAuth] = useState(null);
   const abortRef = useRef(null);
@@ -169,7 +169,7 @@ export default function App() {
     setMessages([]);
     setSystemMessages([]);
     setChatFinished(false);
-    setStatusText('Generating persona roles...');
+    setStatusText('Generating expert persona roles...');
 
     try {
       const genA = personaMode === 'freeform'
@@ -188,10 +188,10 @@ export default function App() {
       await startChat(
         {
           persona_a_model_id: selections[0],
-          persona_a_name: personaA.name || 'Persona A',
+          persona_a_name: personaA.name || 'Expert Persona A',
           persona_a_role: roleA.role_prompt,
           persona_b_model_id: selections[1],
-          persona_b_name: personaB.name || 'Persona B',
+          persona_b_name: personaB.name || 'Expert Persona B',
           persona_b_role: roleB.role_prompt,
           starter_text: starterText,
         },
@@ -240,7 +240,10 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="header-left">
-          <span className="app-title">AI Conversations</span>
+          <a href="https://www.neon.ai/" target="_blank" rel="noopener noreferrer" className="header-brand-link">
+            <img src="/neon-logo.png" alt="Neon.ai" className="app-logo" />
+          </a>
+          <h1 className="app-title"><a href="https://www.neon.ai/" target="_blank" rel="noopener noreferrer" className="app-title-link">Neon.ai</a> - AI to AI Conversations</h1>
         </div>
         <div className="header-right">
           <AuthBadge auth={auth} />
@@ -304,6 +307,10 @@ export default function App() {
           />
         </div>
       </main>
+      <footer className="app-footer">
+        Copyright Neon.ai. All rights reserved.{' '}
+        <a href="https://www.neon.ai/contact" target="_blank" rel="noopener noreferrer">Patents and licensing</a>
+      </footer>
     </div>
   );
 }

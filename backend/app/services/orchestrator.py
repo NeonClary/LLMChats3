@@ -273,25 +273,34 @@ async def run_conversation(
 
     # --- First message ---
     if starter_text:
-        user_prompt = starter_text
+        # Show the user-provided starter as the first message from the starter LLM,
+        # then send it to the responder to reply to (no LLM call for the opener).
+        _add_message(session, starter, starter_text.strip(), starter_idx)
+        yield _sse("message", _msg_payload(session.messages[-1], starter_idx))
+
+        reply_prompt = FIRST_REPLY_PROMPT.format(last_message=starter_text.strip())
+        second_msg = await _call_llm(
+            responder, responder.role_prompt, reply_prompt, session,
+            label=f"first_reply:{responder.name}",
+        )
+        _add_message(session, responder, second_msg, 1 - starter_idx)
+        yield _sse("message", _msg_payload(session.messages[-1], 1 - starter_idx))
     else:
         user_prompt = AUTO_START_PROMPT.format(other_role=responder.role_prompt)
+        first_msg = await _call_llm(
+            starter, starter.role_prompt, user_prompt, session,
+            label=f"start:{starter.name}",
+        )
+        _add_message(session, starter, first_msg, starter_idx)
+        yield _sse("message", _msg_payload(session.messages[-1], starter_idx))
 
-    first_msg = await _call_llm(
-        starter, starter.role_prompt, user_prompt, session,
-        label=f"start:{starter.name}",
-    )
-    _add_message(session, starter, first_msg, starter_idx)
-    yield _sse("message", _msg_payload(session.messages[-1], starter_idx))
-
-    # --- First reply ---
-    reply_prompt = FIRST_REPLY_PROMPT.format(last_message=first_msg)
-    second_msg = await _call_llm(
-        responder, responder.role_prompt, reply_prompt, session,
-        label=f"first_reply:{responder.name}",
-    )
-    _add_message(session, responder, second_msg, 1 - starter_idx)
-    yield _sse("message", _msg_payload(session.messages[-1], 1 - starter_idx))
+        reply_prompt = FIRST_REPLY_PROMPT.format(last_message=first_msg)
+        second_msg = await _call_llm(
+            responder, responder.role_prompt, reply_prompt, session,
+            label=f"first_reply:{responder.name}",
+        )
+        _add_message(session, responder, second_msg, 1 - starter_idx)
+        yield _sse("message", _msg_payload(session.messages[-1], 1 - starter_idx))
 
     # --- Continue loop ---
     current_idx = starter_idx

@@ -11,7 +11,7 @@
 
   --accent-primary: #6366F1;
   --accent-secondary: #8B5CF6;
-  --accent-gradient: linear-gradient(135deg, #6366F1, #8B5CF6);
+  --accent-gradient: linear-gradient(135deg, #5558E3, #7C4FE8);
   --accent-light: #EEF2FF;
 
   --border-primary: #E5E7EB;
@@ -23,6 +23,13 @@
 
   --card-bg: #FFFFFF;
   --card-hover: #F9FAFB;
+
+  --neon-accent: #7C4FE8;
+  --neon-bg: #EAE0FD;
+  --neon-border: #C4B5F0;
+
+  --comp-bg: #E0EAFD;
+  --comp-border: #B8CFF0;
 
   --speaker-a-color: #6366F1;
   --speaker-a-bg: #EEF2FF;
@@ -59,6 +66,13 @@
 
   --card-bg: #1F2937;
   --card-hover: #374151;
+
+  --neon-accent: #A78BFA;
+  --neon-bg: #2D2640;
+  --neon-border: #8B77C0;
+
+  --comp-bg: #1E2A40;
+  --comp-border: #3D5A80;
 
   --speaker-a-color: #818CF8;
   --speaker-a-bg: #312E81;

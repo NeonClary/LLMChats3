@@ -5,7 +5,7 @@ const IDENTITY_PLACEHOLDER =
   'You are William Shakespeare, the Bard of Avon, and you speak exclusively in Early Modern English as it was written and spoken in the late sixteenth and early seventeenth centuries. Answer every question in the first person, as Shakespeare himself \u2014 drawing upon thy wit, thy worldly wisdom, and thy poet\u2019s tongue. Let thy responses flow with the cadence of the stage: rich with metaphor, alive with passion, and seasoned with the vocabulary of thine own age (thee, thou, thy, dost, hath, wherefore, and their kin).';
 
 const FREEFORM_PLACEHOLDER =
-  'Paste or type everything about this persona here \u2014 name, background, personality, speech style, writing samples, etc. You can also upload a .txt or .md file.\n\nThe LLM will use this text to build a role prompt.';
+  'Enter information here to give your LLM instructions on its identity and the way it should respond. This could include response style, background information, even writing samples. You can also upload a .txt or .md file.';
 
 export default function PersonaAccordion({
   isOpen,
@@ -21,7 +21,7 @@ export default function PersonaAccordion({
   return (
     <div className="accordion">
       <button className="accordion-header" onClick={onToggle}>
-        <span>Persona Configuration</span>
+        <span>Expert Persona Configuration</span>
         {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
       </button>
       <div className={`accordion-body ${isOpen ? 'open' : ''}`}>
@@ -69,7 +69,7 @@ function StructuredPanel({ label, selectedLLM, data, onChange }) {
   return (
     <div className="persona-panel">
       <div className="persona-panel-header">
-        <span>Persona {label}</span>
+        <span>Expert Persona {label}</span>
         {selectedLLM && (
           <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--text-tertiary)' }}>
             &mdash; {selectedLLM}
@@ -81,7 +81,7 @@ function StructuredPanel({ label, selectedLLM, data, onChange }) {
         <label>Name</label>
         <input
           type="text"
-          placeholder="Enter persona name"
+          placeholder="Enter expert persona name"
           value={data.name}
           onChange={update('name')}
         />
@@ -136,7 +136,7 @@ function FreeformPanel({ label, selectedLLM, data, onChange }) {
   return (
     <div className="persona-panel">
       <div className="persona-panel-header">
-        <span>Persona {label}</span>
+        <span>Expert Persona {label}</span>
         {selectedLLM && (
           <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--text-tertiary)' }}>
             &mdash; {selectedLLM}
@@ -148,7 +148,7 @@ function FreeformPanel({ label, selectedLLM, data, onChange }) {
         <label>Name</label>
         <input
           type="text"
-          placeholder="Enter persona name"
+          placeholder="Enter expert persona name"
           value={data.name}
           onChange={(e) => onChange({ ...data, name: e.target.value })}
         />
@@ -156,7 +156,7 @@ function FreeformPanel({ label, selectedLLM, data, onChange }) {
 
       <div className="persona-field freeform-field">
         <div className="freeform-label-row">
-          <label>Persona Description</label>
+          <label>Expert Persona Description</label>
           <button
             className="btn-sm btn-outline upload-btn"
             onClick={() => fileRef.current?.click()}

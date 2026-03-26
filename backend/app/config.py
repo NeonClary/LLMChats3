@@ -128,7 +128,8 @@ class Settings(BaseSettings):
                 "base_url": tg_url,
                 "api_key": tg_key,
                 "models": [
-                    {"id": "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo", "name": "Llama 3.1 8B Turbo", "params": "8B"},
+                    {"id": "meta-llama/Llama-3.3-70B-Instruct-Turbo", "name": "Llama 3.3 70B Turbo", "params": "70B"},
+                    {"id": "meta-llama/Meta-Llama-3-8B-Instruct-Lite", "name": "Llama 3 8B Lite", "params": "8B"},
                 ],
             })
 

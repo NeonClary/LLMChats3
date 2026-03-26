@@ -21,9 +21,18 @@ export default function ChatControls({ onStart, onStop, disabled, isRunning }) {
         </button>
       ) : (
         <>
+          <button
+            className="btn-secondary"
+            onClick={handleAutoStart}
+            disabled={disabled}
+            title="Let the LLMs start on their own"
+          >
+            <Shuffle size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+            Let Them Start
+          </button>
           <input
             type="text"
-            placeholder="Enter a conversation starter, or let them start on their own..."
+            placeholder="Let them start on their own, or enter a conversation starter here"
             value={starterText}
             onChange={e => setStarterText(e.target.value)}
             disabled={disabled}
@@ -39,15 +48,6 @@ export default function ChatControls({ onStart, onStop, disabled, isRunning }) {
           >
             <Play size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
             Start Chat
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={handleAutoStart}
-            disabled={disabled}
-            title="Let the LLMs start on their own"
-          >
-            <Shuffle size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-            Let Them Start
           </button>
         </>
       )}

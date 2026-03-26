@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Cpu, ChevronDown, ChevronRight } from 'lucide-react';
+import { Cloud, ChevronDown, ChevronRight } from 'lucide-react';
 
 export default function LLMSelector({ providers, neonModels, selections, onSelectionsChange }) {
   const lastClickRef = useRef({ id: null, time: 0 });
@@ -87,10 +87,7 @@ export default function LLMSelector({ providers, neonModels, selections, onSelec
 
   return (
     <div className="sidebar">
-      <div className="sidebar-title">
-        <Cpu size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-        Select LLMs
-      </div>
+      <h2 className="sidebar-title">AI Models</h2>
 
       {selections.length > 0 && (
         <div className="sidebar-selection-summary">
@@ -100,54 +97,62 @@ export default function LLMSelector({ providers, neonModels, selections, onSelec
       )}
 
       {Object.keys(neonGroups).length > 0 && (
-        <div className="sidebar-section-label">Neon</div>
-      )}
-
-      {Object.entries(neonGroups).map(([groupName, models]) => {
-        const key = `neon-${groupName}`;
-        const isOpen = !!openGroups[key];
-        return (
-          <div key={key} className="provider-group">
-            <button className="provider-accordion-header" onClick={() => toggleGroup(key)}>
-              <span className="provider-accordion-title">{groupName}</span>
-              <span className="provider-accordion-meta">
-                <span className="provider-model-count">{models.length}</span>
-                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              </span>
-            </button>
-            {isOpen && (
-              <div className="model-list">
-                {models.map(renderModel)}
+        <div className="sidebar-section">
+          <h3 className="selector-title">
+            <img src="/neon-logo.png" alt="" className="selector-title-icon" />
+            Neon.ai Models
+          </h3>
+          {Object.entries(neonGroups).map(([groupName, models]) => {
+            const key = `neon-${groupName}`;
+            const isOpen = !!openGroups[key];
+            return (
+              <div key={key} className="provider-group neon-group">
+                <button className="provider-accordion-header" onClick={() => toggleGroup(key)}>
+                  <span className="provider-accordion-title">{groupName}</span>
+                  <span className="provider-accordion-meta">
+                    <span className="provider-model-count">{models.length}</span>
+                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </span>
+                </button>
+                {isOpen && (
+                  <div className="model-list">
+                    {models.map(renderModel)}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      )}
 
       {(providers || []).length > 0 && (
-        <div className="sidebar-section-label">External Models</div>
-      )}
-
-      {(providers || []).map(provider => {
-        const key = `prov-${provider.id}`;
-        const isOpen = !!openGroups[key];
-        return (
-          <div key={key} className="provider-group">
-            <button className="provider-accordion-header" onClick={() => toggleGroup(key)}>
-              <span className="provider-accordion-title">{provider.name}</span>
-              <span className="provider-accordion-meta">
-                <span className="provider-model-count">{provider.models.length}</span>
-                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              </span>
-            </button>
-            {isOpen && (
-              <div className="model-list">
-                {provider.models.map(renderModel)}
+        <div className="sidebar-section">
+          <h3 className="selector-title">
+            <Cloud size={16} />
+            Other Models
+          </h3>
+          {[...(providers || [])].sort((a, b) => a.name.localeCompare(b.name)).map(provider => {
+            const key = `prov-${provider.id}`;
+            const isOpen = !!openGroups[key];
+            return (
+              <div key={key} className="provider-group comp-group">
+                <button className="provider-accordion-header" onClick={() => toggleGroup(key)}>
+                  <span className="provider-accordion-title">{provider.name}</span>
+                  <span className="provider-accordion-meta">
+                    <span className="provider-model-count">{provider.models.length}</span>
+                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </span>
+                </button>
+                {isOpen && (
+                  <div className="model-list">
+                    {provider.models.map(renderModel)}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
