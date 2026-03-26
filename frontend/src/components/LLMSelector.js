@@ -1,8 +1,7 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Cloud, ChevronDown, ChevronRight } from 'lucide-react';
 
 export default function LLMSelector({ providers, neonModels, selections, onSelectionsChange }) {
-  const lastClickRef = useRef({ id: null, time: 0 });
   const [openGroups, setOpenGroups] = useState({});
 
   const toggleGroup = (key) => {
@@ -10,34 +9,17 @@ export default function LLMSelector({ providers, neonModels, selections, onSelec
   };
 
   const handleClick = useCallback((modelId) => {
-    const now = Date.now();
-    const last = lastClickRef.current;
-    const isDoubleClick = last.id === modelId && (now - last.time) < 400;
-    lastClickRef.current = { id: modelId, time: now };
-
     onSelectionsChange(prev => {
-      if (isDoubleClick) {
-        if (prev.length === 1 && prev[0] === modelId) {
-          return [modelId, modelId];
-        }
-        if (prev.length === 2 && prev[0] === modelId && prev[1] === modelId) {
-          return [];
-        }
-        return [modelId, modelId];
-      }
+      const isSelected = prev.includes(modelId);
+      const isBoth = prev.length === 2 && prev[0] === modelId && prev[1] === modelId;
 
-      const idx = prev.indexOf(modelId);
-      if (idx !== -1) {
-        if (prev.length === 2 && prev[0] === prev[1]) {
-          return [];
-        }
-        return prev.filter((_, i) => i !== idx);
-      }
+      if (isBoth) return [];
 
-      if (prev.length < 2) {
-        return [...prev, modelId];
-      }
-      return [prev[0], modelId];
+      if (isSelected) return [modelId, modelId];
+
+      if (prev.length < 2) return [...prev, modelId];
+
+      return [prev[1], modelId];
     });
   }, [onSelectionsChange]);
 
