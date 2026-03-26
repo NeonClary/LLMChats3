@@ -187,7 +187,7 @@ async def _call_llm(
     log_entry["response"] = result
     session.api_log.append(log_entry)
 
-    return result.get("response", "")
+    return result.get("response", ""), result.get("elapsed_seconds", 0)
 
 
 async def _call_orchestrator(
@@ -279,27 +279,27 @@ async def run_conversation(
         yield _sse("message", _msg_payload(session.messages[-1], starter_idx))
 
         reply_prompt = FIRST_REPLY_PROMPT.format(last_message=starter_text.strip())
-        second_msg = await _call_llm(
+        second_msg, second_elapsed = await _call_llm(
             responder, responder.role_prompt, reply_prompt, session,
             label=f"first_reply:{responder.name}",
         )
-        _add_message(session, responder, second_msg, 1 - starter_idx)
+        _add_message(session, responder, second_msg, 1 - starter_idx, second_elapsed)
         yield _sse("message", _msg_payload(session.messages[-1], 1 - starter_idx))
     else:
         user_prompt = AUTO_START_PROMPT.format(other_role=responder.role_prompt)
-        first_msg = await _call_llm(
+        first_msg, first_elapsed = await _call_llm(
             starter, starter.role_prompt, user_prompt, session,
             label=f"start:{starter.name}",
         )
-        _add_message(session, starter, first_msg, starter_idx)
+        _add_message(session, starter, first_msg, starter_idx, first_elapsed)
         yield _sse("message", _msg_payload(session.messages[-1], starter_idx))
 
         reply_prompt = FIRST_REPLY_PROMPT.format(last_message=first_msg)
-        second_msg = await _call_llm(
+        second_msg, second_elapsed = await _call_llm(
             responder, responder.role_prompt, reply_prompt, session,
             label=f"first_reply:{responder.name}",
         )
-        _add_message(session, responder, second_msg, 1 - starter_idx)
+        _add_message(session, responder, second_msg, 1 - starter_idx, second_elapsed)
         yield _sse("message", _msg_payload(session.messages[-1], 1 - starter_idx))
 
     # --- Continue loop ---
@@ -332,12 +332,12 @@ async def run_conversation(
         if not session.end_mode and not session.wrap_sent:
             if session.a_count >= 8 and session.b_count >= 8:
                 session.wrap_sent = True
-                wrap_msg = await _call_llm(
+                wrap_msg, wrap_elapsed = await _call_llm(
                     current, current.role_prompt,
                     WRAP_UP_PROMPT.format(history=history_text),
                     session, label=f"wrap_up:{current.name}",
                 )
-                _add_message(session, current, wrap_msg, current_idx)
+                _add_message(session, current, wrap_msg, current_idx, wrap_elapsed)
                 yield _sse("message", _msg_payload(session.messages[-1], current_idx))
 
                 session.end_mode = True
@@ -351,11 +351,11 @@ async def run_conversation(
 
         # Normal continue
         prompt = CONTINUE_PROMPT.format(history=history_text)
-        response = await _call_llm(
+        response, resp_elapsed = await _call_llm(
             current, current.role_prompt, prompt, session,
             label=f"continue:{current.name}",
         )
-        _add_message(session, current, response, current_idx)
+        _add_message(session, current, response, current_idx, resp_elapsed)
         yield _sse("message", _msg_payload(session.messages[-1], current_idx))
 
         current_idx = 1 - current_idx
@@ -373,27 +373,27 @@ async def _end_sequence(
 
     for attempt in range(5):
         # Get end message from current participant
-        end_msg = await _call_llm(
+        end_msg, end_elapsed = await _call_llm(
             participants[current_idx],
             participants[current_idx].role_prompt,
             END_CONVERSATION_PROMPT.format(history=history_text),
             session,
             label=f"end:{participants[current_idx].name}:attempt{attempt}",
         )
-        _add_message(session, participants[current_idx], end_msg, current_idx)
+        _add_message(session, participants[current_idx], end_msg, current_idx, end_elapsed)
         yield _sse("message", _msg_payload(session.messages[-1], current_idx))
 
         # Get end message from the other participant
         other_idx = 1 - current_idx
         history_text = _format_history(session.messages)
-        end_msg2 = await _call_llm(
+        end_msg2, end_elapsed2 = await _call_llm(
             participants[other_idx],
             participants[other_idx].role_prompt,
             END_CONVERSATION_PROMPT.format(history=history_text),
             session,
             label=f"end:{participants[other_idx].name}:attempt{attempt}",
         )
-        _add_message(session, participants[other_idx], end_msg2, other_idx)
+        _add_message(session, participants[other_idx], end_msg2, other_idx, end_elapsed2)
         yield _sse("message", _msg_payload(session.messages[-1], other_idx))
 
         # Ask orchestrator if this is a good ending
@@ -427,7 +427,7 @@ async def _end_sequence(
 # SSE helpers
 # ---------------------------------------------------------------------------
 
-def _add_message(session: Session, persona: Persona, text: str, speaker_idx: int) -> None:
+def _add_message(session: Session, persona: Persona, text: str, speaker_idx: int, elapsed: float = 0) -> None:
     session.messages.append({
         "speaker": persona.name,
         "speaker_idx": speaker_idx,
@@ -435,6 +435,7 @@ def _add_message(session: Session, persona: Persona, text: str, speaker_idx: int
         "model_display": persona.display_name,
         "text": text,
         "timestamp": time.time(),
+        "elapsed_seconds": round(elapsed, 2),
     })
     if speaker_idx == 0:
         session.a_count += 1
@@ -449,6 +450,7 @@ def _msg_payload(msg: dict, speaker_idx: int) -> dict:
         "model_display": msg["model_display"],
         "text": msg["text"],
         "timestamp": msg["timestamp"],
+        "elapsed_seconds": msg.get("elapsed_seconds", 0),
     }
 
 

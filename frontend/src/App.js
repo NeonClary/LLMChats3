@@ -46,6 +46,10 @@ export default function App() {
   const [personaMode, setPersonaMode] = useState('freeform');
   const [speedPriority, setSpeedPriorityState] = useState(false);
   const [auth, setAuth] = useState(null);
+  const [showResponseTime, setShowResponseTime] = useState(false);
+  const [showChatStats, setShowChatStats] = useState(false);
+  const [rolePrompts, setRolePrompts] = useState(null);
+  const [rolePromptsOpen, setRolePromptsOpen] = useState(false);
   const abortRef = useRef(null);
 
   useEffect(() => {
@@ -183,6 +187,11 @@ export default function App() {
 
       if (controller.signal.aborted) return;
 
+      setRolePrompts({
+        a: { name: personaA.name || 'Expert Persona A', model: getDisplayName(selections[0], providers, neonModels), prompt: roleA.role_prompt },
+        b: { name: personaB.name || 'Expert Persona B', model: getDisplayName(selections[1], providers, neonModels), prompt: roleB.role_prompt },
+      });
+
       setStatusText('Starting conversation...');
 
       await startChat(
@@ -262,6 +271,12 @@ export default function App() {
             onPersonaModeChange={setPersonaMode}
             speedPriority={speedPriority}
             onSpeedPriorityChange={handleSpeedPriorityChange}
+            showResponseTime={showResponseTime}
+            onShowResponseTimeChange={setShowResponseTime}
+            showChatStats={showChatStats}
+            onShowChatStatsChange={setShowChatStats}
+            rolePrompts={rolePrompts}
+            onShowRolePrompts={() => setRolePromptsOpen(true)}
             onDownloadChatTxt={handleDownloadTxt}
             onDownloadChatMd={handleDownloadMd}
             onDownloadApiLog={handleDownloadApiLog}
@@ -304,6 +319,8 @@ export default function App() {
             systemMessages={systemMessages}
             isRunning={isRunning}
             statusText={statusText}
+            showResponseTime={showResponseTime}
+            showChatStats={showChatStats}
           />
         </div>
       </main>
@@ -311,6 +328,27 @@ export default function App() {
         Copyright Neon.ai. All rights reserved.{' '}
         <a href="https://www.neon.ai/contact" target="_blank" rel="noopener noreferrer">Patents and licensing</a>
       </footer>
+
+      {rolePromptsOpen && rolePrompts && (
+        <div className="modal-overlay" onClick={() => setRolePromptsOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Generated Role Prompts</h2>
+              <button className="modal-close" onClick={() => setRolePromptsOpen(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="role-prompt-section">
+                <h3>{rolePrompts.a.name} <span className="role-prompt-model">({rolePrompts.a.model})</span></h3>
+                <pre className="role-prompt-text">{rolePrompts.a.prompt}</pre>
+              </div>
+              <div className="role-prompt-section">
+                <h3>{rolePrompts.b.name} <span className="role-prompt-model">({rolePrompts.b.model})</span></h3>
+                <pre className="role-prompt-text">{rolePrompts.b.prompt}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

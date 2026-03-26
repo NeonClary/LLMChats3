@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ChevronRight, Download, Settings2, Search } from 'lucide-react';
+import { ChevronRight, Download, Settings2, Search, Eye, EyeOff, FileText } from 'lucide-react';
 
 export default function DevMenu({
   allModels,
@@ -9,6 +9,12 @@ export default function DevMenu({
   onPersonaModeChange,
   speedPriority,
   onSpeedPriorityChange,
+  showResponseTime,
+  onShowResponseTimeChange,
+  showChatStats,
+  onShowChatStatsChange,
+  rolePrompts,
+  onShowRolePrompts,
   onDownloadApiLog,
   onDownloadChatTxt,
   onDownloadChatMd,
@@ -99,6 +105,21 @@ export default function DevMenu({
             >
               Freeform expert persona input
             </button>
+            <div className="dev-panel-divider" />
+            <div className="dev-panel-label">Display options</div>
+            <button onClick={() => onShowResponseTimeChange(!showResponseTime)}>
+              {showResponseTime ? <Eye size={14} /> : <EyeOff size={14} />}
+              <span style={{ marginLeft: 6 }}>Response times on messages</span>
+            </button>
+            <button onClick={() => onShowChatStatsChange(!showChatStats)}>
+              {showChatStats ? <Eye size={14} /> : <EyeOff size={14} />}
+              <span style={{ marginLeft: 6 }}>Chat stats after end</span>
+            </button>
+            <button disabled={!rolePrompts} onClick={() => { onShowRolePrompts(); setOpen(false); }}>
+              <FileText size={14} />
+              <span style={{ marginLeft: 6 }}>View role prompts</span>
+            </button>
+            <div className="dev-panel-divider" />
             <button disabled={!hasChat} className="dev-panel-download-item" onClick={() => { onDownloadChatTxt(); setOpen(false); }}>
               Download chat as .txt
             </button>

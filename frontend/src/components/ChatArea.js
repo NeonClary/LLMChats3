@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import MessageBubble from './MessageBubble';
 
-export default function ChatArea({ messages, systemMessages, isRunning, statusText }) {
+export default function ChatArea({ messages, systemMessages, isRunning, statusText, showResponseTime, showChatStats }) {
   const endRef = useRef(null);
 
   useEffect(() => {
@@ -9,6 +9,13 @@ export default function ChatArea({ messages, systemMessages, isRunning, statusTe
   }, [messages, systemMessages]);
 
   const hasContent = messages.length > 0 || systemMessages.length > 0;
+  const chatEnded = systemMessages.some(s => s.text === 'End of Chat');
+
+  const stats = useMemo(() => {
+    if (!chatEnded || messages.length === 0) return null;
+    const totalTime = messages.reduce((sum, m) => sum + (m.elapsed_seconds || 0), 0);
+    return { count: messages.length, totalTime: totalTime.toFixed(1) };
+  }, [chatEnded, messages]);
 
   return (
     <div className="chat-area">
@@ -19,7 +26,7 @@ export default function ChatArea({ messages, systemMessages, isRunning, statusTe
       )}
 
       {messages.map((msg, i) => (
-        <MessageBubble key={i} message={msg} />
+        <MessageBubble key={i} message={msg} showResponseTime={showResponseTime} />
       ))}
 
       {systemMessages.map((sys, i) => (
@@ -30,6 +37,12 @@ export default function ChatArea({ messages, systemMessages, isRunning, statusTe
           {sys.text}
         </div>
       ))}
+
+      {showChatStats && stats && (
+        <div className="chat-stats">
+          {stats.count} messages &middot; {stats.totalTime}s total generation time
+        </div>
+      )}
 
       {isRunning && statusText && (
         <div className="status-bar">
