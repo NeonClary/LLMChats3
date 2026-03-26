@@ -21,12 +21,16 @@ ROLE_GENERATION_PROMPT = (
 )
 
 FREEFORM_ROLE_GENERATION_PROMPT = (
-    "Write a concise but highly informative 3-5 sentence prompt which when used as the "
-    '"role" input will enable an LLM to respond in a way that sounds like the authentic '
-    "voice of the person or character described below. "
-    "Consider personality, speech patterns, identity, interests, motivation, and "
-    "conversational style. Extract and integrate any name, background, profile information, "
-    "identity cues, and writing or speech samples present in the text.\n\n"
+    "You will receive freeform information about a character or persona. The input may be "
+    "detailed (with writing samples, background, etc.) or very brief (just a name or a short "
+    "description). Regardless of how much is provided, write a complete, vivid 3-5 sentence "
+    "role prompt that an LLM can use to convincingly embody this persona in a conversation.\n\n"
+    "If the input is sparse, infer plausible personality traits, speech patterns, interests, "
+    "and conversational style from whatever clues are available (the name, any title or "
+    "occupation, context, etc.). Fill in realistic detail so the role prompt is rich and "
+    "actionable — never produce a vague or skeletal prompt.\n\n"
+    "Cover: personality, tone and speech patterns, background/expertise, interests and "
+    "motivations, and how they would naturally interact in a casual conversation.\n\n"
     "The persona's name is: {name}\n\n"
     "Here is everything provided about this persona:\n"
     "---\n{text}\n---"

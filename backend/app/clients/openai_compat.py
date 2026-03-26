@@ -74,13 +74,16 @@ async def openai_chat_completion(
             data = resp.json()
             choices = data.get("choices", [])
             text = ""
+            finish_reason = ""
             if choices:
                 msg = choices[0].get("message") or {}
                 text = msg.get("content") or ""
+                finish_reason = choices[0].get("finish_reason") or ""
             return {
                 "response": text.strip(),
                 "elapsed_seconds": round(elapsed, 2),
                 "model": data.get("model", model),
+                "finish_reason": finish_reason,
             }
         except httpx.HTTPStatusError as exc:
             if attempt == 0:
