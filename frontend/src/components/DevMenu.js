@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ChevronRight, Download, Settings2, Search, Eye, EyeOff, FileText } from 'lucide-react';
+import { ChevronRight, Download, Settings2, Search, Check, Eye, EyeOff, FileText, Square, CheckSquare } from 'lucide-react';
 
 export default function DevMenu({
   allModels,
@@ -83,57 +83,70 @@ export default function DevMenu({
             <div className="dev-panel-divider" />
             <div className="dev-panel-label">Response priority</div>
             <button
-              disabled={!speedPriority}
-              onClick={() => { onSpeedPriorityChange(false); }}
+              className={`dev-panel-choice ${!speedPriority ? 'dev-panel-choice-active' : ''}`}
+              onClick={() => onSpeedPriorityChange(false)}
             >
+              {!speedPriority ? <CheckSquare size={16} className="dev-check-icon" /> : <Square size={16} className="dev-check-icon" />}
               Prioritize model choice
             </button>
             <button
-              disabled={speedPriority}
-              onClick={() => { onSpeedPriorityChange(true); }}
+              className={`dev-panel-choice ${speedPriority ? 'dev-panel-choice-active' : ''}`}
+              onClick={() => onSpeedPriorityChange(true)}
             >
+              {speedPriority ? <CheckSquare size={16} className="dev-check-icon" /> : <Square size={16} className="dev-check-icon" />}
               Prioritize conversation speed
             </button>
             <div className="dev-panel-divider" />
+            <div className="dev-panel-label">Expert persona input</div>
             <button
-              disabled={personaMode === 'structured'}
-              onClick={() => { onPersonaModeChange('structured'); setOpen(false); }}
+              className={`dev-panel-choice ${personaMode === 'structured' ? 'dev-panel-choice-active' : ''}`}
+              onClick={() => onPersonaModeChange('structured')}
             >
+              {personaMode === 'structured' ? <CheckSquare size={16} className="dev-check-icon" /> : <Square size={16} className="dev-check-icon" />}
               Structured expert persona input
             </button>
             <button
-              disabled={personaMode === 'freeform'}
-              onClick={() => { onPersonaModeChange('freeform'); setOpen(false); }}
+              className={`dev-panel-choice ${personaMode === 'freeform' ? 'dev-panel-choice-active' : ''}`}
+              onClick={() => onPersonaModeChange('freeform')}
             >
+              {personaMode === 'freeform' ? <CheckSquare size={16} className="dev-check-icon" /> : <Square size={16} className="dev-check-icon" />}
               Freeform expert persona input
             </button>
             <div className="dev-panel-divider" />
             <div className="dev-panel-label">Role generation</div>
             <button
-              disabled={roleStyle === 'ai_completed'}
+              className={`dev-panel-choice ${roleStyle === 'ai_completed' ? 'dev-panel-choice-active' : ''}`}
               onClick={() => onRoleStyleChange('ai_completed')}
             >
+              {roleStyle === 'ai_completed' ? <CheckSquare size={16} className="dev-check-icon" /> : <Square size={16} className="dev-check-icon" />}
               AI completed roles
             </button>
             <button
-              disabled={roleStyle === 'exact'}
+              className={`dev-panel-choice ${roleStyle === 'exact' ? 'dev-panel-choice-active' : ''}`}
               onClick={() => onRoleStyleChange('exact')}
             >
+              {roleStyle === 'exact' ? <CheckSquare size={16} className="dev-check-icon" /> : <Square size={16} className="dev-check-icon" />}
               Exact user roles
             </button>
             <div className="dev-panel-divider" />
             <div className="dev-panel-label">Display options</div>
-            <button onClick={() => onShowResponseTimeChange(!showResponseTime)}>
-              {showResponseTime ? <Eye size={14} /> : <EyeOff size={14} />}
-              <span style={{ marginLeft: 6 }}>Response times on messages</span>
+            <button
+              className={`dev-panel-choice ${showResponseTime ? 'dev-panel-choice-active' : ''}`}
+              onClick={() => onShowResponseTimeChange(!showResponseTime)}
+            >
+              {showResponseTime ? <CheckSquare size={16} className="dev-check-icon" /> : <Square size={16} className="dev-check-icon" />}
+              Response times on messages
             </button>
-            <button onClick={() => onShowChatStatsChange(!showChatStats)}>
-              {showChatStats ? <Eye size={14} /> : <EyeOff size={14} />}
-              <span style={{ marginLeft: 6 }}>Chat stats after end</span>
+            <button
+              className={`dev-panel-choice ${showChatStats ? 'dev-panel-choice-active' : ''}`}
+              onClick={() => onShowChatStatsChange(!showChatStats)}
+            >
+              {showChatStats ? <CheckSquare size={16} className="dev-check-icon" /> : <Square size={16} className="dev-check-icon" />}
+              Chat stats after end
             </button>
-            <button disabled={!rolePrompts} onClick={() => { onShowRolePrompts(); setOpen(false); }}>
-              <FileText size={14} />
-              <span style={{ marginLeft: 6 }}>View role prompts</span>
+            <button className="dev-panel-choice" disabled={!rolePrompts} onClick={() => { onShowRolePrompts(); setOpen(false); }}>
+              <FileText size={14} className="dev-check-icon" />
+              View role prompts
             </button>
             <div className="dev-panel-divider" />
             <button disabled={!hasChat} className="dev-panel-download-item" onClick={() => { onDownloadChatTxt(); setOpen(false); }}>

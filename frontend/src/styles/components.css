@@ -801,6 +801,26 @@
   padding: 4px 10px 2px;
 }
 
+.dev-panel-choice {
+  padding-left: 22px !important;
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+.dev-panel-choice-active {
+  color: var(--text-primary) !important;
+  opacity: 1 !important;
+}
+
+.dev-check-icon {
+  flex-shrink: 0;
+}
+
+.dev-panel-choice-active .dev-check-icon {
+  color: var(--neon-accent, #22c55e);
+}
+
 .dev-panel-download-item {
   display: none !important;
 }
