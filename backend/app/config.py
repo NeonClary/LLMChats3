@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     together_api_key: str = ""
     openai_api_key: str = ""
     gemini_api_key: str = ""
+    mistral_api_key: str = ""
 
     orchestrator_model: str = "gpt-4o-mini"
     speed_priority: bool = False
@@ -102,15 +103,17 @@ class Settings(BaseSettings):
                     "models": oai_models,
                 })
 
-        if tg_ok:
+        mistral_ok = self.mistral_api_key and self.mistral_api_key != "your-mistral-api-key-here"
+        if mistral_ok:
             providers.append({
                 "id": "mistral",
                 "name": "Mistral",
-                "base_url": tg_url,
-                "api_key": tg_key,
+                "base_url": "https://api.mistral.ai/v1",
+                "api_key": self.mistral_api_key,
                 "models": [
-                    {"id": "mistralai/Mistral-Small-24B-Instruct-2501", "name": "Mistral Small 24B", "params": "23.6B"},
-                    {"id": "mistralai/Mixtral-8x7B-Instruct-v0.1", "name": "Mixtral 8x7B", "params": "46.7B (12.9B active)"},
+                    {"id": "mistral-small-2506", "name": "Mistral Small 3.2", "params": "24B"},
+                    {"id": "mistral-small-2603", "name": "Mistral Small 4", "params": "119B"},
+                    {"id": "devstral-2512", "name": "Devstral2", "params": "123B"},
                 ],
             })
             providers.append({
