@@ -3,7 +3,7 @@ const API_BASE = process.env.REACT_APP_API_URL !== undefined
   : 'http://localhost:8000';
 
 export async function fetchModels() {
-  const resp = await fetch(`${API_BASE}/api/models`);
+  const resp = await fetch(`${API_BASE}/api/models`, { cache: 'no-store' });
   if (!resp.ok) throw new Error(`Failed to fetch models: ${resp.status}`);
   return resp.json();
 }

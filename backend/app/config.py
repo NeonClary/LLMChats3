@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     hana_base_url: str = "https://hana.neonaialpha.com"
     hana_username: str = "guest"
     hana_password: str = "password"
+    # BrainForge/Security (4090 x1-3): separate HANA login password (see HANA_KLATCHAT_PASSWORD in .env)
+    hana_username_klatchat: str = ""
+    hana_password_klatchat: str = ""
+    # Comma-separated model_id values to merge via get_personas when get_models omits them (needs HANA access)
+    hana_neon_model_supplement_ids: str = "BrainForge/Security@2026.03.18"
 
     vllm_api_key: str = ""
 

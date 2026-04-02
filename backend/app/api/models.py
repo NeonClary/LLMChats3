@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 
 from app.clients.hana_client import hana_client
 from app.config import settings
@@ -31,7 +32,10 @@ async def get_models():
             ],
         })
 
-    return {
-        "neon_models": neon_models,
-        "providers": providers,
-    }
+    return JSONResponse(
+        content={
+            "neon_models": neon_models,
+            "providers": providers,
+        },
+        headers={"Cache-Control": "no-store"},
+    )
