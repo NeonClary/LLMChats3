@@ -147,6 +147,9 @@ async def api_start_chat(req: StartChatRequest, request: Request):
         is_neon=ra.get("is_neon", False),
         hana_model_id=ra.get("hana_model_id", ""),
         persona_name=ra.get("persona_name", ""),
+        neon_direct_vllm=ra.get("neon_direct_vllm", False),
+        vllm_base_url=ra.get("vllm_base_url", ""),
+        vllm_api_key=ra.get("vllm_api_key", ""),
     )
     session.persona_b = Persona(
         name=req.persona_b_name or "Persona B",
@@ -158,6 +161,9 @@ async def api_start_chat(req: StartChatRequest, request: Request):
         is_neon=rb.get("is_neon", False),
         hana_model_id=rb.get("hana_model_id", ""),
         persona_name=rb.get("persona_name", ""),
+        neon_direct_vllm=rb.get("neon_direct_vllm", False),
+        vllm_base_url=rb.get("vllm_base_url", ""),
+        vllm_api_key=rb.get("vllm_api_key", ""),
     )
 
     async def event_stream():

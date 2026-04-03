@@ -32,11 +32,6 @@ async def lifespan(app: FastAPI):
     try:
         await hana_client.authenticate()
         await hana_client.get_models()
-        if (settings.hana_password_klatchat or "").strip():
-            try:
-                await hana_client.authenticate_klatchat()
-            except Exception as exc_k:
-                LOG.warning("HANA klatchat auth skipped: %s", exc_k)
         LOG.info("HANA auth complete, persona cache populated.")
     except Exception as exc:
         LOG.warning("HANA auth failed (Neon models will be unavailable): %s", exc)

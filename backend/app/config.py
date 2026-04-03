@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -12,9 +13,15 @@ class Settings(BaseSettings):
     hana_base_url: str = "https://hana.neonaialpha.com"
     hana_username: str = "guest"
     hana_password: str = "password"
-    # BrainForge/Security (4090 x1-3): separate HANA login password (see HANA_KLATCHAT_PASSWORD in .env)
+    # BrainForge/Security (4090 x1-3): separate HANA login — use HANA_KLATCHAT_PASSWORD or HANA_PASSWORD_KLATCHAT in project-root .env
     hana_username_klatchat: str = ""
-    hana_password_klatchat: str = ""
+    # Same value as HuggingFace Space secret API_KEY for 4090-x1-3 — OpenAI-compatible Bearer, NOT HANA /auth/login password.
+    hana_password_klatchat: str = Field(
+        default="",
+        validation_alias=AliasChoices("HANA_KLATCHAT_PASSWORD", "HANA_PASSWORD_KLATCHAT"),
+    )
+    # Direct vLLM base (no /v1); matches brainforge-webapp docker config 4090-x1-3 host.
+    neon_security_vllm_base_url: str = "https://4090-x1-3.neonaiservices2.com/vllm0"
     # Comma-separated model_id values to merge via get_personas when get_models omits them (needs HANA access)
     hana_neon_model_supplement_ids: str = "BrainForge/Security@2026.03.18"
 
@@ -36,6 +43,12 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    def _neon_security_direct_vllm_enabled(self, hana_model_id: str) -> bool:
+        """BrainForge/Security on 4090-x1-3: same pattern as brainforge-webapp (direct vLLM + API key)."""
+        if "security" not in (hana_model_id or "").lower():
+            return False
+        return bool((self.hana_password_klatchat or "").strip() and (self.neon_security_vllm_base_url or "").strip())
 
     @property
     def providers(self) -> list[dict]:
@@ -165,7 +178,7 @@ class Settings(BaseSettings):
             if len(parts) == 3:
                 hana_model_id = parts[1]
                 persona_name = parts[2]
-                return {
+                out: dict = {
                     "is_neon": True,
                     "model_id": model_id,
                     "hana_model_id": hana_model_id,
@@ -175,6 +188,11 @@ class Settings(BaseSettings):
                     "base_url": self.hana_base_url,
                     "api_key": "",
                 }
+                if self._neon_security_direct_vllm_enabled(hana_model_id):
+                    out["neon_direct_vllm"] = True
+                    out["vllm_base_url"] = f"{self.neon_security_vllm_base_url.rstrip('/')}/v1"
+                    out["vllm_api_key"] = self.hana_password_klatchat
+                return out
 
         for prov in self.providers:
             for m in prov["models"]:
@@ -190,3 +208,40 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# region agent log
+def _agent_log_settings_env() -> None:
+    import json
+    import time
+
+    _path = r"c:\Users\dream\CCAI-Demo-FEAT_Config\debug-c86901.log"
+    try:
+        raw = _ENV_FILE.read_text(encoding="utf-8") if _ENV_FILE.is_file() else ""
+        data = {
+            "app": "LLMChats3",
+            "env_file": str(_ENV_FILE),
+            "env_file_exists": _ENV_FILE.is_file(),
+            "dotenv_line_HANA_KLATCHAT_PASSWORD": "HANA_KLATCHAT_PASSWORD" in raw,
+            "dotenv_line_HANA_PASSWORD_KLATCHAT": "HANA_PASSWORD_KLATCHAT" in raw,
+            "settings_hana_password_klatchat_nonempty": bool((settings.hana_password_klatchat or "").strip()),
+        }
+        with open(_path, "a", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "sessionId": "c86901",
+                        "hypothesisId": "H1",
+                        "location": "LLMChats3/config.py:settings",
+                        "message": "env_binding",
+                        "data": data,
+                        "timestamp": int(time.time() * 1000),
+                    }
+                )
+                + "\n"
+            )
+    except Exception:
+        pass
+
+
+_agent_log_settings_env()
+# endregion

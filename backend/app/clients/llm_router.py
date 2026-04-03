@@ -137,12 +137,50 @@ async def _racing_openai(
     return result
 
 
+async def _call_neon_direct_vllm(
+    resolved: dict,
+    messages: list[dict[str, str]],
+    temperature: float,
+    max_tokens: int,
+) -> dict[str, Any]:
+    """BrainForge/Security on 4090-x1-3: OpenAI-compatible vLLM; still use HANA persona base when cached."""
+    builtin_sp = hana_client.get_persona_system_prompt(
+        resolved["hana_model_id"], resolved["persona_name"]
+    )
+    msgs = [dict(m) for m in messages]
+    if builtin_sp:
+        if msgs and msgs[0].get("role") == "system":
+            msgs[0] = {
+                "role": "system",
+                "content": msgs[0]["content"] + "\n\n[Neon persona base from HANA]\n" + builtin_sp,
+            }
+        else:
+            msgs.insert(0, {"role": "system", "content": "[Neon persona base from HANA]\n" + builtin_sp})
+
+    result = await openai_chat_completion(
+        base_url=resolved["vllm_base_url"],
+        api_key=resolved["vllm_api_key"],
+        model=resolved["hana_model_id"],
+        messages=msgs,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    return {
+        "response": result.get("response", ""),
+        "elapsed_seconds": result.get("elapsed_seconds", 0),
+        "model": resolved["model_id"],
+    }
+
+
 async def _call_hana(
     resolved: dict,
     messages: list[dict[str, str]],
     temperature: float,
     max_tokens: int,
 ) -> dict[str, Any]:
+    if resolved.get("neon_direct_vllm"):
+        return await _call_neon_direct_vllm(resolved, messages, temperature, max_tokens)
+
     system_context = ""
     query = ""
     history: list[tuple[str, str]] = []

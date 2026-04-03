@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import time
 from typing import Any
@@ -26,7 +27,9 @@ class HanaClient:
         self._persona_cache: dict[str, str | None] = {}
 
     def _uses_klatchat_model(self, model_id: str) -> bool:
-        """4090 x1-3 (BrainForge/Security) uses a separate HANA password."""
+        """Legacy HANA-JWT path for Security — disabled when using direct vLLM (brainforge-webapp pattern)."""
+        if settings._neon_security_direct_vllm_enabled(model_id):
+            return False
         if not (settings.hana_password_klatchat or "").strip():
             return False
         mid = (model_id or "").lower()
@@ -164,6 +167,137 @@ class HanaClient:
             })
         return models
 
+    async def _merge_direct_vllm_security_models(
+        self, models: list[dict[str, Any]], seen: set[str]
+    ) -> None:
+        """Merge models from OpenAI-compatible GET /v1/models (NeonGeckoCom/brainforge-webapp pattern)."""
+        base = (settings.neon_security_vllm_base_url or "").strip().rstrip("/")
+        key = (settings.hana_password_klatchat or "").strip()
+        if not base or not key:
+            return
+        url = f"{base}/v1/models"
+        try:
+            resp = await self._client.get(
+                url,
+                headers={"Authorization": f"Bearer {key}"},
+            )
+            if resp.status_code != 200:
+                LOG.warning("Neon direct vLLM %s -> %s", url, resp.status_code)
+                return
+            payload = resp.json()
+            added = 0
+            for o in payload.get("data", []) or []:
+                mid = (o.get("id") or "").strip()
+                if not mid or "@" not in mid:
+                    continue
+                if mid in seen:
+                    continue
+                name, version = mid.split("@", 1)
+                vanilla = {
+                    "id": "vanilla",
+                    "persona_name": "vanilla",
+                    "description": None,
+                    "system_prompt": None,
+                    "enabled": True,
+                }
+                self._persona_cache[f"{mid}:vanilla"] = None
+                models.append({
+                    "name": name,
+                    "version": version,
+                    "model_id": mid,
+                    "personas": [vanilla],
+                })
+                seen.add(mid)
+                added += 1
+            if added:
+                LOG.info("Merged %s model(s) from direct vLLM %s", added, base)
+            # region agent log
+            try:
+                with open(r"c:\Users\dream\CCAI-Demo-FEAT_Config\debug-c86901.log", "a", encoding="utf-8") as _df:
+                    _df.write(
+                        json.dumps(
+                            {
+                                "sessionId": "c86901",
+                                "hypothesisId": "H5",
+                                "location": "LLMChats3/hana_client._merge_direct_vllm",
+                                "message": "direct_vllm_models",
+                                "data": {
+                                    "app": "LLMChats3",
+                                    "url": url,
+                                    "http_status": resp.status_code,
+                                    "added_count": added,
+                                },
+                                "timestamp": int(time.time() * 1000),
+                            }
+                        )
+                        + "\n"
+                    )
+            except Exception:
+                pass
+            # endregion
+        except Exception as exc:
+            LOG.warning("Neon direct vLLM model merge failed: %s", exc)
+
+    async def _enrich_security_personas_from_hana(self, models: list[dict[str, Any]]) -> None:
+        """Replace Security personas with HANA get_personas when the server allows (persona prompts live on HANA)."""
+        for m in models:
+            mid = m.get("model_id") or ""
+            if "security" not in mid.lower():
+                continue
+            try:
+                plist = await self.get_personas(mid)
+                if plist:
+                    m["personas"] = plist
+                    for p in plist:
+                        pname = p.get("persona_name", "")
+                        sp = p.get("system_prompt") or ""
+                        self._persona_cache[f"{mid}:{pname}"] = sp if sp else None
+                    LOG.info("Enriched Security personas from HANA get_personas for %s", mid)
+            except Exception as exc:
+                LOG.debug("HANA get_personas enrichment skipped for %s: %s", mid, exc)
+
+    async def _ensure_security_model_stub_if_missing(self, models: list[dict[str, Any]]) -> None:
+        """If vLLM merge failed (401) and HANA supplement failed, still list Security so the UI can show it."""
+        sid = "BrainForge/Security@2026.03.18"
+        wanted = [x.strip() for x in (settings.hana_neon_model_supplement_ids or "").split(",") if x.strip()]
+        if not any((w == sid or ("security" in w.lower() and "@" in w)) for w in wanted):
+            return
+        if any((m.get("model_id") == sid) for m in models):
+            return
+        try:
+            plist = await self.get_personas(sid)
+            name, ver = sid.split("@", 1)
+            for p in plist or []:
+                pname = p.get("persona_name", "")
+                sp = p.get("system_prompt") or ""
+                self._persona_cache[f"{sid}:{pname}"] = sp if sp else None
+            models.append({
+                "name": name,
+                "version": ver,
+                "model_id": sid,
+                "personas": plist or [],
+            })
+            LOG.info("Security model added via HANA get_personas (stub path)")
+        except Exception as exc:
+            LOG.warning(
+                "Security model not in HANA/vLLM responses (%s); adding minimal stub entry.",
+                exc,
+            )
+            vanilla = {
+                "id": "vanilla",
+                "persona_name": "vanilla",
+                "description": "Set HANA_KLATCHAT_PASSWORD to the 4090-x1-3 OpenAI API key (same as HF Space) so vLLM discovery works; persona prompts come from HANA when allowed.",
+                "system_prompt": None,
+                "enabled": True,
+            }
+            self._persona_cache[f"{sid}:vanilla"] = None
+            models.append({
+                "name": "BrainForge/Security",
+                "version": "2026.03.18",
+                "model_id": sid,
+                "personas": [vanilla],
+            })
+
     async def get_models(self) -> list[dict[str, Any]]:
         await self._ensure_token()
         resp = await self._client.post(
@@ -175,23 +309,37 @@ class HanaClient:
         models = self._parse_models_payload(resp.json())
         seen = {m["model_id"] for m in models}
 
-        if (settings.hana_password_klatchat or "").strip():
-            try:
-                await self._ensure_klatchat_token()
-                resp2 = await self._client.post(
-                    f"{self._base}/brainforge/get_models",
-                    headers=self._headers_klatchat(),
-                    json={},
-                )
-                resp2.raise_for_status()
-                for m in self._parse_models_payload(resp2.json()):
-                    if m["model_id"] not in seen:
-                        models.append(m)
-                        seen.add(m["model_id"])
-            except Exception as exc:
-                LOG.warning("HANA get_models (klatchat) merge skipped: %s", exc)
+        if (settings.hana_password_klatchat or "").strip() and (settings.neon_security_vllm_base_url or "").strip():
+            await self._merge_direct_vllm_security_models(models, seen)
 
         await self._append_supplement_models(models)
+        await self._enrich_security_personas_from_hana(models)
+        await self._ensure_security_model_stub_if_missing(models)
+        # region agent log
+        try:
+            mids = [m.get("model_id", "") for m in models]
+            with open(r"c:\Users\dream\CCAI-Demo-FEAT_Config\debug-c86901.log", "a", encoding="utf-8") as _df:
+                _df.write(
+                    json.dumps(
+                        {
+                            "sessionId": "c86901",
+                            "hypothesisId": "H3",
+                            "location": "LLMChats3/hana_client.get_models",
+                            "message": "merged_models",
+                            "data": {
+                                "app": "LLMChats3",
+                                "model_count": len(models),
+                                "has_security_in_list": any("security" in (x or "").lower() for x in mids),
+                                "model_ids_tail": mids[-8:],
+                            },
+                            "timestamp": int(time.time() * 1000),
+                        }
+                    )
+                    + "\n"
+                )
+        except Exception:
+            pass
+        # endregion
         return models
 
     async def get_personas(self, model_id: str) -> list[dict[str, Any]]:

@@ -85,6 +85,9 @@ class Persona:
     is_neon: bool = False
     hana_model_id: str = ""
     persona_name: str = ""
+    neon_direct_vllm: bool = False
+    vllm_base_url: str = ""
+    vllm_api_key: str = ""
 
 
 @dataclass
@@ -157,6 +160,9 @@ async def _call_llm(
         "is_neon": persona.is_neon,
         "hana_model_id": persona.hana_model_id,
         "persona_name": persona.persona_name,
+        "neon_direct_vllm": persona.neon_direct_vllm,
+        "vllm_base_url": persona.vllm_base_url,
+        "vllm_api_key": persona.vllm_api_key,
     }
     result = await unified_chat_completion(
         resolved=resolved,
